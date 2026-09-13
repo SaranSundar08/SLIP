@@ -17,6 +17,11 @@
 #include <xtensor/xfixed.hpp>
 #include <xtensor/xmath.hpp>
 
+#ifdef TGMPPI_WITH_CUDA
+#include <cstring>
+#include "nav2_tgmppi_controller/tools/gpu_rollout.hpp"
+#endif
+
 namespace tgmppi::critics
 {
 
@@ -36,6 +41,10 @@ void PathAlignCritic::initialize()
     threshold_to_consider_,
     "threshold_to_consider", 0.5);
   getParam(use_path_orientations_, "use_path_orientations", false);
+
+#ifdef TGMPPI_WITH_CUDA
+  gpu_critic_.initialize();
+#endif
 
   RCLCPP_INFO(
     logger_,
@@ -70,6 +79,28 @@ void PathAlignCritic::score(CriticData & data)
       return;
     }
   }
+
+#ifdef TGMPPI_WITH_CUDA
+  if (data.compute_backend == "cuda" && gpu_critic_.ready() && !use_path_orientations_) {
+    auto cost_out = xt::xtensor<float, 1>::from_shape({data.costs.shape(0)});
+    if (data.gpu_rollout != nullptr) {
+      const auto * rollout = static_cast<const GpuRollout *>(data.gpu_rollout);
+      auto up = GpuPathAlignCritic::uploadPathInputs(
+        data.path, *data.path_pts_valid, path_segments_count);
+      auto cost_gpu = gpu_critic_.computeDevice(
+        rollout->trajX(), rollout->trajY(), up.path_x, up.path_y, up.path_valid,
+        up.path_integrated_distances, trajectory_point_step_, weight_, power_);
+      auto cost_cpu = cost_gpu.to(torch::kCPU).contiguous();
+      std::memcpy(cost_out.data(), cost_cpu.data_ptr<float>(), cost_out.size() * sizeof(float));
+    } else {
+      gpu_critic_.score(
+        data.trajectories, data.path, *data.path_pts_valid, path_segments_count,
+        trajectory_point_step_, weight_, power_, cost_out);
+    }
+    data.costs += cost_out;
+    return;
+  }
+#endif
 
   const auto P_x = xt::view(data.path.x, xt::range(_, -1));  // path points
   const auto P_y = xt::view(data.path.y, xt::range(_, -1));  // path points

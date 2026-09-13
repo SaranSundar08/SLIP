@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypedef="xml"?>
+<package format="3">
+  <name>susag_gazebo_plugins</name>
+  <version>0.0.1</version>
+  <description>Custom Gazebo Classic model plugins for this project -- currently one, an SDF-parameterized sinusoidal oscillator used to validate the space-time topology port against a real moving obstacle.</description>
+  <maintainer email="saransrimathi590@gmail.com">saran</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>gazebo_ros</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

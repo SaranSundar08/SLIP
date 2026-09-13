@@ -18,6 +18,9 @@
 #include "nav2_tgmppi_controller/critic_function.hpp"
 #include "nav2_tgmppi_controller/models/state.hpp"
 #include "nav2_tgmppi_controller/tools/utils.hpp"
+#ifdef TGMPPI_WITH_CUDA
+#include "nav2_tgmppi_controller/tools/gpu_path_align_critic.hpp"
+#endif
 
 namespace tgmppi::critics
 {
@@ -52,6 +55,10 @@ protected:
   bool use_path_orientations_{false};
   unsigned int power_{0};
   float weight_{0};
+
+#ifdef TGMPPI_WITH_CUDA
+  GpuPathAlignCritic gpu_critic_;
+#endif
 };
 
 }  // namespace tgmppi::critics

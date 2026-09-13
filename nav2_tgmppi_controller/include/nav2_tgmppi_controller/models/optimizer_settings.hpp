@@ -17,6 +17,7 @@
 
 #include <cstddef>
 #include <string>
+#include <vector>
 #include "nav2_tgmppi_controller/models/constraints.hpp"
 
 namespace tgmppi::models
@@ -51,6 +52,69 @@ struct OptimizerSettings
   float tgmppi_lookahead_dist{0.6f};  // path lookahead for the "toward-goal" bearing (m)
   float tgmppi_goal_dist{1.0f};       // within this range of the goal, disable the tgmppi
                                       // Let plain MPPI + GoalCritic dock near the goal.
+  // Floor on the heading-error speed factor (cos(err), clamped) used when
+  // building each pseudopod's ancillary reference (v,w) sequence -- 0.15
+  // is the long-standing default (a big turn slows the reference to 15% of
+  // cruise speed, never fully stopping it). Ported from the amoeba_sandbox
+  // finding that this floor being LOW makes different pseudopods' references
+  // barely distinguishable within the MPPI horizon (see amoeba_sandbox
+  // docs/experiments/REFERENCE_DISTINCTNESS.md, "nominal_fb"): raising it
+  // toward 1.0 removes heading-based slowdown, making each pseudopod commit
+  // to its own direction faster and diverge from the others sooner. Unlike
+  // the sandbox's branch_to_control_sequence(), this reference step has no
+  // curvature- or clearance-based slowdown term to also disable -- there
+  // wasn't one here to begin with, so raising this floor is the whole of
+  // this controller's nominal_fb analog.
+  float tgmppi_reference_min_speed_ratio{0.15f};
+  // When true (sandbox's reference_infeasible_fallback): if a pseudopod's
+  // ancillary rollout built with tgmppi_reference_min_speed_ratio turns out
+  // invalid (mode_valid[m]==false, e.g. it collides), that ONE pseudopod is
+  // regenerated using the safe 0.15 floor instead before being scored, same
+  // as the sandbox falling back to its "shaped" reference per-branch.
+  // Meaningless (never triggers) when tgmppi_reference_min_speed_ratio is
+  // already <= 0.15.
+  bool tgmppi_reference_infeasible_fallback{false};
+
+  // amoeba_sandbox grouped_sampling.py port (2026-09-13), V3 ("uncorrected
+  // within-mode") only -- V4's importance-mixture correction + ESS guard is
+  // deliberately NOT ported yet, a declared future step, not an oversight.
+  // Default false reproduces the existing single-shared-softmax update
+  // exactly. When true: each pseudopod's row block (plus the "wait" block
+  // and the remaining unbiased rows) gets its OWN local softmax over just
+  // its own rows instead of one softmax over the whole batch, each group's
+  // free energy is compared, and the single lowest-free-energy group's
+  // local weighted mean becomes the new control sequence -- the sandbox's
+  // core fix for samples random-walking across modes instead of committing
+  // to one. No cross-cycle hysteresis (sandbox's select_mode() switch_margin)
+  // is implemented: that needs stable pseudopod identity across reflood
+  // cycles, which is itself an explicitly unsolved, deferred sandbox
+  // problem ("topological branch re-ID", see thesis-october-green-light-
+  // plan). Only meaningful when tgmppi_bias_enabled=true and
+  // tgmppi_shadow_mode=false -- silently behaves exactly like the default
+  // otherwise, since there's only one group (the whole batch) in that case.
+  bool tgmppi_grouped_update{false};
+
+  // amoeba_sandbox spacetime.py Phase 1 port (2026-09-13): opt-in extra
+  // sampling modes ("wait"/"detour") built from a time-expanded (x,y,t)
+  // search against a real moving obstacle, alongside the ordinary
+  // pseudopod modes. Default false: zero behavior change, no subscription
+  // to any obstacle topic, tgmppi_spacetime_obstacle_topics ignored.
+  bool tgmppi_spacetime_enabled{false};
+  // Ground-truth nav_msgs/Odometry topics (position + twist), one per
+  // moving obstacle -- e.g. susag_gazebo_plugins' OscillatingObstaclePlugin
+  // + libgazebo_ros_p3d on the same model, matching amoeba_sandbox's own
+  // ground-truth-oracle shortcut for predicted_moving_obs() (see
+  // moving_obstacle_driver.py's docstring history / PROJECT_STATUS.md,
+  // 2026-09-13): this project doesn't have or need real obstacle-tracking
+  // perception to port the search algorithm faithfully.
+  std::vector<std::string> tgmppi_spacetime_obstacle_topics{};
+  float tgmppi_spacetime_obstacle_radius{0.25f};    // matches the test world's cylinder
+  float tgmppi_spacetime_horizon{3.0f};             // search horizon (s), sandbox default
+  float tgmppi_spacetime_dt_layer{0.25f};           // search time-layer spacing (s)
+  float tgmppi_spacetime_res{0.10f};                // search grid resolution (m)
+  float tgmppi_spacetime_window{2.5f};              // search grid lateral room (m)
+  float tgmppi_spacetime_relevance{0.0f};           // crossing-trigger margin (m); 0 =
+                                                     // only a genuine predicted collision
   bool tgmppi_debug{false};           // publish /tgmppi_debug markers (scan rays + wrap arrows)
   bool tgmppi_ancillary_debug{false};   // publish up to 3 lightweight Path candidates
 

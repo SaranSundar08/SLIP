@@ -106,7 +106,11 @@ geometry_msgs::msg::TwistStamped TgMppiController::computeVelocityCommands(
   RCLCPP_INFO(logger_, "Control loop execution time: %ld [ms]", duration);
 #endif
 
-  if (visualize_) {
+  // add() builds the full candidate-trajectory marker (thousands of line
+  // segments from the batch) unconditionally; skip that work entirely when
+  // nobody's actually subscribed to /trajectories instead of building it
+  // every cycle just to have publish() drop it (2026-09-11).
+  if (visualize_ && trajectory_visualizer_.isActive()) {
     visualize(std::move(transformed_plan));
   }
 

@@ -37,11 +37,24 @@ amcl:
     sigma_hit: 0.2
     tf_broadcast: true
     transform_tolerance: 1.0
-    update_min_a: 0.18
-    update_min_d: 0.12
-    z_hit: 0.9
+    update_min_a: 0.12     # was 0.18: update on smaller motion, converge faster in
+                            # tight/dynamic spaces where waiting to move 10+ degrees
+                            # before the next update is too slow to react
+    update_min_d: 0.08     # was 0.12, same reasoning
+    z_hit: 0.75            # was 0.9: less confident that every beam should match the
+                            # STATIC map, since moving_obstacle_1/2 aren't in it
     z_max: 0.05
-    z_rand: 0.05
+    z_rand: 0.20           # was 0.05 (2026-09-13): the actual fix. A moving obstacle's
+                            # laser returns don't match the static map at all; with
+                            # z_rand this low, AMCL's likelihood-field model treated
+                            # every such beam as strong evidence AGAINST the correct
+                            # pose, corrupting the estimate (observed live: AMCL vs.
+                            # ground-truth Y drifted up to ~0.5m in world_48_dynamic).
+                            # Raising z_rand tells the model to expect a chunk of
+                            # "doesn't match the map" beams as normal/tolerated rather
+                            # than penalized -- the standard Nav2/AMCL fix for
+                            # environments with obstacles the localization map doesn't
+                            # know about.
     z_short: 0.0
     scan_topic: front_scan   # AMCL takes ONE lidar; the rear one feeds the costmaps only
 
@@ -139,6 +152,22 @@ controller_server:
       tgmppi_bias_gain: 1.0          # Kp: heading error -> yaw rate (1.5 oscillated left/right)
       tgmppi_lookahead_dist: 0.6     # path lookahead for the toward-goal bearing (m)
       tgmppi_goal_dist: 1.0          # within this range of goal, disable tgmppi (plain MPPI docks)
+      # amoeba_sandbox nominal_fb port (2026-09-11, opt-in like the sandbox
+      # itself): default 0.15/false reproduces prior behavior exactly.
+      # 1.0 disables heading-based slowdown on each pseudopod's ancillary
+      # reference (drive it at full speed), relying on the fallback to
+      # retry with 0.15 if that turns out infeasible for a given pseudopod.
+      tgmppi_reference_min_speed_ratio: 1.0
+      tgmppi_reference_infeasible_fallback: true
+      # amoeba_sandbox grouped_sampling.py port (2026-09-13), V3 only (no
+      # cross-cycle hysteresis -- see optimizer_settings.hpp docstring).
+      # false = exactly today's single-shared-softmax update. true = each
+      # pseudopod's row block (+ wait/unbiased blocks) gets its own local
+      # softmax, single best-scoring group's mean wins outright instead of
+      # blending across all of them. Dynamic param -- flip live with
+      # `ros2 param set /controller_server FollowPath.tgmppi_grouped_update
+      # true|false` to test without relaunching.
+      tgmppi_grouped_update: false
       tgmppi_debug: true             # geodesic body/membrane markers (light enough for normal use)
       tgmppi_ancillary_debug: true   # three lightweight /tgmppi/ancillary_path_* topics
 

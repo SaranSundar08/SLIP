@@ -91,6 +91,7 @@ add_library(tgmppi_controller SHARED
   src/path_handler.cpp
   src/parameters_handler.cpp
   src/noise_generator.cpp
+  src/tools/space_time_search.cpp
   src/tools/gpu_rollout.cpp
 )
 
@@ -100,6 +101,7 @@ add_library(tgmppi_critics SHARED
   src/tools/gpu_goal_critic.cpp
   src/tools/gpu_flow_field_critic.cpp
   src/tools/gpu_elementwise_critics.cpp
+  src/tools/gpu_path_align_critic.cpp
   src/critics/obstacles_critic.cpp
   src/critics/cost_critic.cpp
   src/critics/goal_critic.cpp

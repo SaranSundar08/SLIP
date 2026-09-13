@@ -15,8 +15,11 @@
 #ifndef NAV2_TGMPPI_CONTROLLER__OPTIMIZER_HPP_
 #define NAV2_TGMPPI_CONTROLLER__OPTIMIZER_HPP_
 
+#include <array>
 #include <string>
 #include <memory>
+#include <mutex>
+#include <utility>
 #include <vector>
 #include <chrono>
 
@@ -33,6 +36,7 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 
@@ -43,6 +47,7 @@
 #include "nav2_tgmppi_controller/models/trajectories.hpp"
 #include "nav2_tgmppi_controller/models/path.hpp"
 #include "nav2_tgmppi_controller/tools/flow_field.hpp"
+#include "nav2_tgmppi_controller/tools/space_time_search.hpp"
 #include "nav2_tgmppi_controller/tools/noise_generator.hpp"
 #include "nav2_tgmppi_controller/tools/parameters_handler.hpp"
 #include "nav2_tgmppi_controller/tools/utils.hpp"
@@ -309,20 +314,50 @@ protected:
 #endif
   rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr
     tgmppi_debug_pub_;
-  std::array<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr, 3>
-  ancillary_path_pubs_;
-  std::array<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr, 3>
-  ancillary_rollout_pubs_;
-  std::array<std::vector<float>, 3> ancillary_rollout_x_;
-  std::array<std::vector<float>, 3> ancillary_rollout_y_;
-  std::array<bool, 3> ancillary_mode_valid_{{false, false, false}};
-  std::array<unsigned int, 3> ancillary_mode_samples_{{0u, 0u, 0u}};
-  std::array<unsigned int, 3> ancillary_mode_row_start_{{0u, 0u, 0u}};
-  std::array<float, 3> ancillary_mode_rejoin_prior_{{0.0f, 0.0f, 0.0f}};
+  // 3 ordinary pseudopod slots + up to 2 amoeba_sandbox spacetime.py
+  // Phase 1 extra modes ("wait"/"detour" past a moving obstacle, see
+  // trySpacetimeAlternatives()) -- slots 3/4 stay valid=false (empty
+  // published paths, no row allocation) whenever tgmppi_spacetime_enabled
+  // is false or no crossing is detected, so this is a strict superset of
+  // the pre-Phase-1 behavior at those indices.
+  static constexpr std::size_t kMaxAncillaryModes = 5;
+  std::array<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr,
+    kMaxAncillaryModes> ancillary_path_pubs_;
+  std::array<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr,
+    kMaxAncillaryModes> ancillary_rollout_pubs_;
+  std::array<std::vector<float>, kMaxAncillaryModes> ancillary_rollout_x_;
+  std::array<std::vector<float>, kMaxAncillaryModes> ancillary_rollout_y_;
+  std::array<bool, kMaxAncillaryModes> ancillary_mode_valid_{};
+  std::array<unsigned int, kMaxAncillaryModes> ancillary_mode_samples_{};
+  std::array<unsigned int, kMaxAncillaryModes> ancillary_mode_row_start_{};
+  std::array<float, kMaxAncillaryModes> ancillary_mode_rejoin_prior_{};
   bool tgmppi_assist_active_{false};
   bool flow_path_blocked_now_{false};
   unsigned int flow_clear_cycles_{0u};
   unsigned int flow_wait_samples_{0u};
+
+  // amoeba_sandbox spacetime.py Phase 1 port: ground-truth moving-obstacle
+  // subscriptions (see tgmppi_spacetime_obstacle_topics's docstring in
+  // optimizer_settings.hpp) and the latest state read from them.
+  // spacetime_obstacles_mutex_ guards spacetime_obstacles_ since callbacks
+  // may run on a different thread than evalControl() depending on the
+  // node's executor/callback-group configuration -- cheap correctness
+  // insurance, this isn't a hot path.
+  std::vector<rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr>
+  spacetime_obstacle_subs_;
+  std::mutex spacetime_obstacles_mutex_;
+  std::vector<SpaceTimeObstacle> spacetime_obstacles_;
+  void spacetimeObstacleCallback(std::size_t index, const nav_msgs::msg::Odometry & msg);
+  // Checks each valid pseudopod for a predicted moving-obstacle crossing
+  // and, if found, appends up to 2 extra modes (wait/detour) into
+  // mode_v/w/x/y/valid and promises_local at indices mode_count and
+  // mode_count+1 -- called from applyFlowBias() after the ordinary
+  // pseudopod loop, before row allocation.
+  void trySpacetimeAlternatives(
+    const std::vector<std::vector<std::pair<float, float>>> & pods, float rx, float ry,
+    std::vector<std::vector<float>> & mode_v, std::vector<std::vector<float>> & mode_w,
+    std::vector<std::vector<float>> & mode_x, std::vector<std::vector<float>> & mode_y,
+    std::vector<bool> & mode_valid, std::vector<float> & promises_local);
   nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D *>
   ancillary_collision_checker_{nullptr};
   std::array<tgmppi::models::Control, 4> control_history_;

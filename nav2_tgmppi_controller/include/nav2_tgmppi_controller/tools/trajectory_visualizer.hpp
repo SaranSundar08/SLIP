@@ -88,6 +88,19 @@ public:
   void visualize(const nav_msgs::msg::Path & plan);
 
   /**
+    * @brief Whether anything is actually subscribed to the trajectory
+    * markers. add() builds a LINE_LIST from the full candidate-trajectory
+    * batch every call regardless of subscribers -- callers should check
+    * this first and skip add()/visualize() entirely when nobody's
+    * listening, rather than paying that cost only to have publish() drop
+    * the result.
+    */
+  bool isActive() const
+  {
+    return trajectories_publisher_->get_subscription_count() > 0;
+  }
+
+  /**
     * @brief Reset object
     */
   void reset();

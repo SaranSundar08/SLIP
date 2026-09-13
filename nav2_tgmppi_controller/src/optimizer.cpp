@@ -14,8 +14,10 @@
 
 #include "nav2_tgmppi_controller/optimizer.hpp"
 
+#include <functional>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -37,6 +39,35 @@ namespace tgmppi
 
 using namespace xt::placeholders;  // NOLINT
 using xt::evaluation_strategy::immediate;
+
+namespace
+{
+// Point at arc-length `s` along a polyline, clamped to the final vertex
+// beyond the polyline's own length -- the C++ equivalent of
+// amoeba_sandbox proposals.py/spacetime.py's `_interpolate`/`_arc_length`
+// helpers, reimplemented locally (small, self-contained) rather than
+// pulled into utils.hpp for one caller.
+std::pair<float, float> pointAtArcLength(
+  const std::vector<std::pair<float, float>> & polyline, float s)
+{
+  if (polyline.empty()) {return {0.0f, 0.0f};}
+  if (polyline.size() == 1 || s <= 0.0f) {return polyline.front();}
+  float remaining = s;
+  for (std::size_t k = 1; k < polyline.size(); ++k) {
+    const float dx = polyline[k].first - polyline[k - 1].first;
+    const float dy = polyline[k].second - polyline[k - 1].second;
+    const float seg_len = std::sqrt(dx * dx + dy * dy);
+    if (remaining <= seg_len || seg_len < 1e-9f) {
+      const float frac = seg_len < 1e-9f ? 0.0f : remaining / seg_len;
+      return {
+        polyline[k - 1].first + frac * dx,
+        polyline[k - 1].second + frac * dy};
+    }
+    remaining -= seg_len;
+  }
+  return polyline.back();
+}
+}  // namespace
 
 void Optimizer::initialize(
   rclcpp_lifecycle::LifecycleNode::WeakPtr parent, const std::string & name,
@@ -68,6 +99,19 @@ void Optimizer::initialize(
     ancillary_rollout_pubs_[i] = node->create_publisher<nav_msgs::msg::Path>(
       "/tgmppi/ancillary_rollout_" + std::to_string(i + 1), 1);
     ancillary_rollout_pubs_[i]->on_activate();
+  }
+
+  // amoeba_sandbox spacetime.py Phase 1 port: one ground-truth Odometry
+  // subscription per configured obstacle topic. No-op (empty vector) when
+  // tgmppi_spacetime_enabled is false or no topics are configured.
+  if (settings_.tgmppi_spacetime_enabled) {
+    spacetime_obstacles_.resize(settings_.tgmppi_spacetime_obstacle_topics.size());
+    for (std::size_t i = 0; i < settings_.tgmppi_spacetime_obstacle_topics.size(); ++i) {
+      spacetime_obstacle_subs_.push_back(
+        node->create_subscription<nav_msgs::msg::Odometry>(
+          settings_.tgmppi_spacetime_obstacle_topics[i], rclcpp::SensorDataQoS(),
+          [this, i](const nav_msgs::msg::Odometry & msg) {spacetimeObstacleCallback(i, msg);}));
+    }
   }
 
   critic_manager_.on_configure(parent_, name_, costmap_ros_, parameters_handler_);
@@ -107,6 +151,20 @@ void Optimizer::getParams()
   getParam(s.tgmppi_bias_gain, "tgmppi_bias_gain", 1.5f);
   getParam(s.tgmppi_lookahead_dist, "tgmppi_lookahead_dist", 0.6f);
   getParam(s.tgmppi_goal_dist, "tgmppi_goal_dist", 1.0f);
+  getParam(s.tgmppi_reference_min_speed_ratio, "tgmppi_reference_min_speed_ratio", 0.15f);
+  getParam(
+    s.tgmppi_reference_infeasible_fallback, "tgmppi_reference_infeasible_fallback", false);
+  getParam(s.tgmppi_grouped_update, "tgmppi_grouped_update", false);
+  getParam(s.tgmppi_spacetime_enabled, "tgmppi_spacetime_enabled", false);
+  getParam(
+    s.tgmppi_spacetime_obstacle_topics, "tgmppi_spacetime_obstacle_topics",
+    std::vector<std::string>{});
+  getParam(s.tgmppi_spacetime_obstacle_radius, "tgmppi_spacetime_obstacle_radius", 0.25f);
+  getParam(s.tgmppi_spacetime_horizon, "tgmppi_spacetime_horizon", 3.0f);
+  getParam(s.tgmppi_spacetime_dt_layer, "tgmppi_spacetime_dt_layer", 0.25f);
+  getParam(s.tgmppi_spacetime_res, "tgmppi_spacetime_res", 0.10f);
+  getParam(s.tgmppi_spacetime_window, "tgmppi_spacetime_window", 2.5f);
+  getParam(s.tgmppi_spacetime_relevance, "tgmppi_spacetime_relevance", 0.0f);
   getParam(s.tgmppi_debug, "tgmppi_debug", false);
   getParam(s.tgmppi_ancillary_debug, "tgmppi_ancillary_debug", false);
   getParam(s.tgmppi_shadow_mode, "tgmppi_shadow_mode", true);
@@ -367,6 +425,169 @@ void Optimizer::generateNoisedTrajectories()
   integrateStateVelocities(generated_trajectories_, state_);
 }
 
+void Optimizer::spacetimeObstacleCallback(std::size_t index, const nav_msgs::msg::Odometry & msg)
+{
+  std::lock_guard<std::mutex> lock(spacetime_obstacles_mutex_);
+  if (index >= spacetime_obstacles_.size()) {return;}
+  spacetime_obstacles_[index].x = static_cast<float>(msg.pose.pose.position.x);
+  spacetime_obstacles_[index].y = static_cast<float>(msg.pose.pose.position.y);
+  spacetime_obstacles_[index].vx = static_cast<float>(msg.twist.twist.linear.x);
+  spacetime_obstacles_[index].vy = static_cast<float>(msg.twist.twist.linear.y);
+  spacetime_obstacles_[index].radius = settings_.tgmppi_spacetime_obstacle_radius;
+}
+
+void Optimizer::trySpacetimeAlternatives(
+  const std::vector<std::vector<std::pair<float, float>>> & pods, float rx, float ry,
+  std::vector<std::vector<float>> & mode_v, std::vector<std::vector<float>> & mode_w,
+  std::vector<std::vector<float>> & mode_x, std::vector<std::vector<float>> & mode_y,
+  std::vector<bool> & mode_valid, std::vector<float> & promises_local)
+{
+  const auto & s = settings_;
+  if (!s.tgmppi_spacetime_enabled || s.tgmppi_spacetime_obstacle_topics.empty()) {
+    return;
+  }
+
+  std::vector<SpaceTimeObstacle> obstacles;
+  {
+    std::lock_guard<std::mutex> lock(spacetime_obstacles_mutex_);
+    obstacles = spacetime_obstacles_;
+  }
+  if (obstacles.empty()) {
+    return;
+  }
+
+  const float search_speed = s.tgmppi_spacetime_res / s.tgmppi_spacetime_dt_layer;
+  const int nk = static_cast<int>(std::lround(s.tgmppi_spacetime_horizon / s.tgmppi_spacetime_dt_layer)) + 1;
+  // The robot's own safe circular radius -- NOT tgmppi_body_radius, which
+  // is the flow field's flood extent (default 2.5m), an unrelated
+  // parameter that happens to share the word "radius".
+  const float robot_r = static_cast<float>(costmap_ros_->getLayeredCostmap()->getInscribedRadius());
+
+  // Single-crossing budget (see trySpacetimeAlternatives()'s declaration
+  // comment in optimizer.hpp): unlike the sandbox's per-branch loop, this
+  // stops at the FIRST pseudopod with a detected crossing, bounded to at
+  // most 2 extra modes total (wait + detour) to fit the fixed 5-slot
+  // ancillary-mode bookkeeping without a larger refactor.
+  const std::size_t mode_count = std::min(pods.size(), mode_valid.size());
+  for (std::size_t m = 0; m < mode_count; ++m) {
+    if (!mode_valid[m] || pods[m].size() < 2) {continue;}
+
+    // Arc length along this pseudopod's own centerline, needed for both
+    // the local goal and the synchronized check points below.
+    float total_arc = 0.0f;
+    std::vector<float> cum_arc{0.0f};
+    for (std::size_t k = 1; k < pods[m].size(); ++k) {
+      const float dx = pods[m][k].first - pods[m][k - 1].first;
+      const float dy = pods[m][k].second - pods[m][k - 1].second;
+      total_arc += std::sqrt(dx * dx + dy * dy);
+      cum_arc.push_back(total_arc);
+    }
+
+    const auto local_goal = pointAtArcLength(
+      pods[m], 0.9f * search_speed * s.tgmppi_spacetime_horizon);
+
+    // nearestCrossingObstacle: worst (most negative) predicted clearance
+    // margin, checked at the search's own synchronized time layers against
+    // the centerline's OWN nominal-speed progression (not the ancillary
+    // controller's achieved speed) -- direct port of
+    // spacetime.py::nearest_crossing_obstacle().
+    float worst_margin = std::numeric_limits<float>::max();
+    std::size_t worst_obstacle = 0;
+    for (int k = 0; k < nk; ++k) {
+      const float t = static_cast<float>(k) * s.tgmppi_spacetime_dt_layer;
+      const auto check_xy = pointAtArcLength(pods[m], search_speed * t);
+      for (std::size_t oi = 0; oi < obstacles.size(); ++oi) {
+        const auto pred = SpaceTimeSearch::predict(obstacles[oi], t, s.tgmppi_spacetime_horizon);
+        const float dx = check_xy.first - pred.first, dy = check_xy.second - pred.second;
+        const float margin = std::sqrt(dx * dx + dy * dy) -
+          (obstacles[oi].radius + robot_r);
+        if (margin < worst_margin) {worst_margin = margin; worst_obstacle = oi;}
+      }
+    }
+    if (worst_margin > s.tgmppi_spacetime_relevance) {continue;}   // no genuine crossing here
+
+    const SpaceTimeObstacle crossing_obstacle = obstacles[worst_obstacle];
+    const auto static_free = [this](float x, float y) {
+        unsigned int mx, my;
+        if (!costmap_->worldToMap(x, y, mx, my)) {return false;}
+        const auto cost = costmap_->getCost(mx, my);
+        return cost != nav2_costmap_2d::LETHAL_OBSTACLE &&
+        cost != nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE;
+      };
+
+    SpaceTimeRoute wait_route, detour_route;
+    bool distinct = false;
+    SpaceTimeSearch::twoRouteSearch(
+      static_free, {crossing_obstacle}, rx, ry, local_goal.first, local_goal.second,
+      robot_r, s.tgmppi_spacetime_horizon, s.tgmppi_spacetime_dt_layer,
+      s.tgmppi_spacetime_res, s.tgmppi_spacetime_window, s.tgmppi_spacetime_res * 1.5f,
+      wait_route, detour_route, distinct);
+
+    // Resample a raw (x, y)-per-dt_layer path onto this controller's own
+    // (time_steps, model_dt) grid via linear interpolation, holding the
+    // final position beyond the path's own duration (preserves a wait
+    // tail as a held position, matching spacetime_path_to_proposal()'s
+    // documented intent). Simplified relative to the sandbox: no
+    // acceleration-limit reprojection or re-rollout-based refeasibility
+    // check -- a documented scoping simplification given this project's
+    // final-porting-day timeline, not an oversight.
+    const auto resample = [&](const SpaceTimeRoute & route,
+      std::vector<float> & v, std::vector<float> & w,
+      std::vector<float> & x, std::vector<float> & y) {
+        v.assign(s.time_steps, 0.0f);
+        w.assign(s.time_steps, 0.0f);
+        x.reserve(s.time_steps);
+        y.reserve(s.time_steps);
+        float prev_x = rx, prev_y = ry, prev_yaw = 0.0f;
+        bool have_prev = false;
+        for (unsigned int t = 0; t < s.time_steps; ++t) {
+          const float layer_f = static_cast<float>(t) * s.model_dt / s.tgmppi_spacetime_dt_layer;
+          const int layer = std::min(
+            static_cast<int>(route.path.size()) - 1, static_cast<int>(std::floor(layer_f)));
+          const float frac = std::min(1.0f, layer_f - static_cast<float>(layer));
+          const auto p0 = route.path[static_cast<std::size_t>(std::max(0, layer))];
+          const auto p1 = route.path[static_cast<std::size_t>(
+            std::min(static_cast<int>(route.path.size()) - 1, layer + 1))];
+          const float px = p0.first + frac * (p1.first - p0.first);
+          const float py = p0.second + frac * (p1.second - p0.second);
+          x.push_back(px);
+          y.push_back(py);
+          if (have_prev) {
+            const float dx = px - prev_x, dy = py - prev_y;
+            const float dist = std::sqrt(dx * dx + dy * dy);
+            v[t] = dist / s.model_dt;
+            const float yaw = (dist > 1e-6f) ? std::atan2(dy, dx) : prev_yaw;
+            w[t] = static_cast<float>(angles::shortest_angular_distance(prev_yaw, yaw)) /
+              s.model_dt;
+            prev_yaw = yaw;
+          }
+          prev_x = px;
+          prev_y = py;
+          have_prev = true;
+        }
+      };
+
+    for (const auto & route : {std::cref(wait_route), std::cref(detour_route)}) {
+      if (!route.get().feasible) {continue;}
+      std::vector<float> v, w, x, y;
+      resample(route.get(), v, w, x, y);
+      mode_v.push_back(std::move(v));
+      mode_w.push_back(std::move(w));
+      mode_x.push_back(std::move(x));
+      mode_y.push_back(std::move(y));
+      mode_valid.push_back(true);
+      // Compete on equal footing with the triggering pseudopod's own
+      // promise -- there is no independent "how good is this route"
+      // score computed yet, so this is a reasonable, documented
+      // simplification: an alternative to a mode is exactly as promising
+      // as the mode it is an alternative to.
+      promises_local.push_back(promises_local[m]);
+      if (mode_v.size() >= mode_count + 2) {return;}   // budget exhausted
+    }
+    return;   // single-crossing budget: stop after the first triggering pseudopod
+  }
+}
+
 void Optimizer::applyFlowBias()
 {
   const auto & s = settings_;
@@ -470,72 +691,97 @@ void Optimizer::applyFlowBias()
   const bool tracking_unknown = costmap_ros_->getLayeredCostmap()->isTrackingUnknown();
   const unsigned int collision_stride =
     static_cast<unsigned int>(std::max(1, s.ancillary_collision_stride));
-  for (std::size_t m = 0; m < mode_count; ++m) {
-    mode_v[m].resize(s.time_steps);
-    mode_w[m].resize(s.time_steps);
-    mode_x[m].reserve(s.time_steps);
-    mode_y[m].reserve(s.time_steps);
-    float x = rx, y = ry, yaw = ryaw;
-    std::size_t cursor = 0;
-    for (unsigned int t = 0; t < s.time_steps; ++t) {
-      // Advance to the nearest non-regressing point, then select a spatial
-      // lookahead target. Restricting the search to [cursor,end) prevents the
-      // controller from jumping backward on a curved pseudopod.
-      float nearest_d2 = std::numeric_limits<float>::max();
-      std::size_t nearest = cursor;
-      for (std::size_t k = cursor; k < pods[m].size(); ++k) {
-        const float ex = pods[m][k].first - x;
-        const float ey = pods[m][k].second - y;
-        const float d2 = ex * ex + ey * ey;
-        if (d2 < nearest_d2) {nearest_d2 = d2; nearest = k;}
-      }
-      cursor = nearest;
-      std::size_t target = cursor;
-      float arc = 0.0f;
-      while (target + 1 < pods[m].size() && arc < s.tgmppi_lookahead_dist) {
-        arc += std::hypot(
-          pods[m][target + 1].first - pods[m][target].first,
-          pods[m][target + 1].second - pods[m][target].second);
-        ++target;
-      }
+  // Builds one pseudopod's ancillary (v,w) reference sequence with a given
+  // heading-error speed floor, filling mode_v/mode_w/mode_x/mode_y[m] and
+  // returning whether the resulting rollout stays collision-free. Extracted
+  // (2026-09-11, amoeba_sandbox nominal_fb port) so
+  // tgmppi_reference_infeasible_fallback can re-run this for one mode with
+  // the safe 0.15 floor if the configured floor produced an invalid
+  // rollout -- see tgmppi_reference_min_speed_ratio's docstring in
+  // optimizer_settings.hpp. Byte-identical to the pre-refactor loop body
+  // when min_speed_ratio==0.15 (the default).
+  auto generate_pod_reference = [&](std::size_t m, float min_speed_ratio) -> bool {
+      mode_v[m].assign(s.time_steps, 0.0f);
+      mode_w[m].assign(s.time_steps, 0.0f);
+      mode_x[m].clear();
+      mode_x[m].reserve(s.time_steps);
+      mode_y[m].clear();
+      mode_y[m].reserve(s.time_steps);
+      bool valid = true;
+      float x = rx, y = ry, yaw = ryaw;
+      std::size_t cursor = 0;
+      for (unsigned int t = 0; t < s.time_steps; ++t) {
+        // Advance to the nearest non-regressing point, then select a spatial
+        // lookahead target. Restricting the search to [cursor,end) prevents the
+        // controller from jumping backward on a curved pseudopod.
+        float nearest_d2 = std::numeric_limits<float>::max();
+        std::size_t nearest = cursor;
+        for (std::size_t k = cursor; k < pods[m].size(); ++k) {
+          const float ex = pods[m][k].first - x;
+          const float ey = pods[m][k].second - y;
+          const float d2 = ex * ex + ey * ey;
+          if (d2 < nearest_d2) {nearest_d2 = d2; nearest = k;}
+        }
+        cursor = nearest;
+        std::size_t target = cursor;
+        float arc = 0.0f;
+        while (target + 1 < pods[m].size() && arc < s.tgmppi_lookahead_dist) {
+          arc += std::hypot(
+            pods[m][target + 1].first - pods[m][target].first,
+            pods[m][target + 1].second - pods[m][target].second);
+          ++target;
+        }
 
-      const float ex = pods[m][target].first - x;
-      const float ey = pods[m][target].second - y;
-      const float want = std::atan2(ey, ex);
-      const float err = static_cast<float>(
-        angles::shortest_angular_distance(yaw, want));
-      const float w = std::clamp(
-        s.tgmppi_bias_gain * err, -s.constraints.wz, s.constraints.wz);
-      const float nominal_v = std::fabs(control_sequence_.vx(t));
-      const float cruise = std::clamp(
-        std::max(0.18f, nominal_v), 0.0f, s.constraints.vx_max);
-      const float turn_scale = std::clamp(std::cos(err), 0.15f, 1.0f);
-      const float endpoint_dist = std::hypot(
-        pods[m].back().first - x, pods[m].back().second - y);
-      const float stop_scale = std::clamp(endpoint_dist / 0.25f, 0.25f, 1.0f);
-      const float v = cruise * turn_scale * stop_scale;
-      mode_v[m][t] = v;
-      mode_w[m][t] = w;
-      yaw += w * s.model_dt;
-      x += v * std::cos(yaw) * s.model_dt;
-      y += v * std::sin(yaw) * s.model_dt;
-      mode_x[m].push_back(x);
-      mode_y[m].push_back(y);
+        const float ex = pods[m][target].first - x;
+        const float ey = pods[m][target].second - y;
+        const float want = std::atan2(ey, ex);
+        const float err = static_cast<float>(
+          angles::shortest_angular_distance(yaw, want));
+        const float w = std::clamp(
+          s.tgmppi_bias_gain * err, -s.constraints.wz, s.constraints.wz);
+        const float nominal_v = std::fabs(control_sequence_.vx(t));
+        const float cruise = std::clamp(
+          std::max(0.18f, nominal_v), 0.0f, s.constraints.vx_max);
+        const float turn_scale = std::clamp(std::cos(err), min_speed_ratio, 1.0f);
+        const float endpoint_dist = std::hypot(
+          pods[m].back().first - x, pods[m].back().second - y);
+        const float stop_scale = std::clamp(endpoint_dist / 0.25f, 0.25f, 1.0f);
+        const float v = cruise * turn_scale * stop_scale;
+        mode_v[m][t] = v;
+        mode_w[m][t] = w;
+        yaw += w * s.model_dt;
+        x += v * std::cos(yaw) * s.model_dt;
+        y += v * std::sin(yaw) * s.model_dt;
+        mode_x[m].push_back(x);
+        mode_y[m].push_back(y);
 
-      const bool check_pose = t % collision_stride == 0 || t + 1 == s.time_steps;
-      if (s.ancillary_collision_check && mode_valid[m] && check_pose) {
-        unsigned int mx, my;
-        if (!costmap_->worldToMap(x, y, mx, my)) {
-          mode_valid[m] = false;
-        } else {
-          const double footprint_cost = ancillary_collision_checker_.footprintCostAtPose(
-            x, y, yaw, footprint);
-          const auto cell_cost = static_cast<unsigned char>(footprint_cost);
-          mode_valid[m] = cell_cost != nav2_costmap_2d::LETHAL_OBSTACLE &&
-            (cell_cost != nav2_costmap_2d::NO_INFORMATION || tracking_unknown);
+        const bool check_pose = t % collision_stride == 0 || t + 1 == s.time_steps;
+        if (s.ancillary_collision_check && valid && check_pose) {
+          unsigned int mx, my;
+          if (!costmap_->worldToMap(x, y, mx, my)) {
+            valid = false;
+          } else {
+            const double footprint_cost = ancillary_collision_checker_.footprintCostAtPose(
+              x, y, yaw, footprint);
+            const auto cell_cost = static_cast<unsigned char>(footprint_cost);
+            valid = cell_cost != nav2_costmap_2d::LETHAL_OBSTACLE &&
+              (cell_cost != nav2_costmap_2d::NO_INFORMATION || tracking_unknown);
+          }
         }
       }
+      return valid;
+    };
+
+  for (std::size_t m = 0; m < mode_count; ++m) {
+    bool valid = generate_pod_reference(m, s.tgmppi_reference_min_speed_ratio);
+    if (!valid && s.tgmppi_reference_infeasible_fallback &&
+      s.tgmppi_reference_min_speed_ratio > 0.15f)
+    {
+      // Retry this one pseudopod with the safe floor -- the sandbox's
+      // reference_infeasible_fallback, applied per-branch.
+      valid = generate_pod_reference(m, 0.15f);
     }
+    mode_valid[m] = valid;
     if (m < ancillary_mode_valid_.size()) {
       ancillary_mode_valid_[m] = mode_valid[m];
       if (mode_valid[m]) {
@@ -596,9 +842,25 @@ void Optimizer::applyFlowBias()
     }
   }
 
+  // amoeba_sandbox spacetime.py Phase 1: may append up to 2 extra modes
+  // (wait/detour) to mode_v/w/x/y/valid past index mode_count-1. No-op
+  // when tgmppi_spacetime_enabled is false. promises_local is a mutable
+  // copy since flow_field_.pseudopodPromises() is a const reference into
+  // FlowField's own storage -- extras need a promise value too (see
+  // trySpacetimeAlternatives()'s docstring: they compete on equal footing
+  // with the pseudopod that triggered them).
+  std::vector<float> promises_local(promises.begin(), promises.end());
+  trySpacetimeAlternatives(pods, rx, ry, mode_v, mode_w, mode_x, mode_y, mode_valid, promises_local);
+  for (std::size_t m = mode_count; m < mode_v.size() && m < ancillary_mode_valid_.size(); ++m) {
+    ancillary_mode_valid_[m] = mode_valid[m];
+    ancillary_rollout_x_[m] = mode_x[m];
+    ancillary_rollout_y_[m] = mode_y[m];
+    ancillary_mode_rejoin_prior_[m] = 0.0f;   // not path-rejoin-scored, unlike ordinary pseudopods
+  }
+
   std::vector<std::size_t> active_modes;
-  active_modes.reserve(mode_count);
-  for (std::size_t m = 0; m < mode_count; ++m) {
+  active_modes.reserve(mode_v.size());
+  for (std::size_t m = 0; m < mode_v.size(); ++m) {
     if (mode_valid[m]) {active_modes.push_back(m);}
   }
   // Promise-weighted multimodal allocation. Only this leading fraction of the
@@ -625,12 +887,12 @@ void Optimizer::applyFlowBias()
   const float temperature = std::max(0.05f, s.flow_promise_temperature);
   float best_promise = std::numeric_limits<float>::max();
   for (const auto m : active_modes) {
-    best_promise = std::min(best_promise, promises[m]);
+    best_promise = std::min(best_promise, promises_local[m]);
   }
   std::vector<float> weights(active_modes.size(), 0.0f);
   float weight_sum = 0.0f;
   for (std::size_t i = 0; i < active_modes.size(); ++i) {
-    weights[i] = std::exp(-(promises[active_modes[i]] - best_promise) / temperature);
+    weights[i] = std::exp(-(promises_local[active_modes[i]] - best_promise) / temperature);
     weight_sum += weights[i];
   }
 
@@ -1116,6 +1378,76 @@ void Optimizer::updateControlSequence()
       s.gamma / powf(s.sampling_std.vy, 2) * xt::sum(
       xt::view(control_sequence_.vy, xt::newaxis(), xt::all()) * bounded_noises_vy,
       1, immediate);
+  }
+
+  if (s.tgmppi_grouped_update && !s.tgmppi_shadow_mode && s.tgmppi_bias_enabled) {
+    // amoeba_sandbox grouped_sampling.py port, V3 ("uncorrected within-
+    // mode") only -- see tgmppi_grouped_update's docstring in
+    // optimizer_settings.hpp. Reconstruct this cycle's row groups from the
+    // same per-pseudopod bookkeeping applyFlowBias() just filled in: each
+    // active pseudopod's contiguous block (rows [0, pod_budget) in
+    // sub-blocks), the "wait" block if offered, then everything else (the
+    // unbiased/nominal remainder) -- always present, covering the whole
+    // batch by itself when bias produced no groups this cycle, which is
+    // exactly the single-shared-softmax case below.
+    struct Group {unsigned int start; unsigned int count;};
+    std::vector<Group> groups;
+    unsigned int covered_end = 0;
+    for (std::size_t m = 0; m < ancillary_mode_valid_.size(); ++m) {
+      if (ancillary_mode_valid_[m] && ancillary_mode_samples_[m] > 0) {
+        groups.push_back({ancillary_mode_row_start_[m], ancillary_mode_samples_[m]});
+        covered_end = std::max(
+          covered_end, ancillary_mode_row_start_[m] + ancillary_mode_samples_[m]);
+      }
+    }
+    if (flow_wait_samples_ > 0) {
+      groups.push_back({covered_end, flow_wait_samples_});
+      covered_end += flow_wait_samples_;
+    }
+    if (covered_end < s.batch_size) {
+      groups.push_back({covered_end, s.batch_size - covered_end});
+    }
+
+    // Per-group local softmax + free energy (sandbox's mode_statistics()):
+    // each group's weights are normalized against only its OWN rows, not
+    // the whole batch.
+    float best_free_energy = std::numeric_limits<float>::max();
+    std::size_t best_group = 0;
+    std::vector<xt::xtensor<float, 1>> group_softmax(groups.size());
+    for (std::size_t g = 0; g < groups.size(); ++g) {
+      auto && group_costs = xt::eval(
+        xt::view(costs_, xt::range(groups[g].start, groups[g].start + groups[g].count)));
+      const float cmin = xt::amin(group_costs, immediate)();
+      auto && likelihood = xt::eval(xt::exp(-(group_costs - cmin) / s.temperature));
+      const float likelihood_sum = xt::sum(likelihood, immediate)();
+      group_softmax[g] = xt::eval(likelihood / likelihood_sum);
+      const float mean_likelihood = likelihood_sum / static_cast<float>(groups[g].count);
+      const float free_energy = cmin - s.temperature * std::log(mean_likelihood);
+      if (free_energy < best_free_energy) {
+        best_free_energy = free_energy;
+        best_group = g;
+      }
+    }
+
+    // sandbox's select_mode(): pick the single lowest-free-energy group and
+    // use ONLY its own rows + local weights as the new control sequence --
+    // no cross-cycle hysteresis (see docstring: needs branch identity this
+    // project doesn't have yet).
+    const auto & chosen = groups[best_group];
+    const unsigned int row0 = chosen.start;
+    const unsigned int row1 = chosen.start + chosen.count;
+    auto && softmax_extended = xt::eval(
+      xt::view(group_softmax[best_group], xt::all(), xt::newaxis()));
+    xt::noalias(control_sequence_.vx) = xt::sum(
+      xt::view(state_.cvx, xt::range(row0, row1), xt::all()) * softmax_extended, 0, immediate);
+    xt::noalias(control_sequence_.wz) = xt::sum(
+      xt::view(state_.cwz, xt::range(row0, row1), xt::all()) * softmax_extended, 0, immediate);
+    if (isHolonomic()) {
+      xt::noalias(control_sequence_.vy) = xt::sum(
+        xt::view(state_.cvy, xt::range(row0, row1), xt::all()) * softmax_extended, 0, immediate);
+    }
+    applyControlSequenceConstraints();
+    return;
   }
 
   auto && costs_normalized = costs_ - xt::amin(costs_, immediate);
