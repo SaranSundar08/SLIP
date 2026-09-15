@@ -94,6 +94,47 @@ struct OptimizerSettings
   // otherwise, since there's only one group (the whole batch) in that case.
   bool tgmppi_grouped_update{false};
 
+  // 2026-09-15 stabilizer port. The port had the sandbox's PROPOSAL half
+  // (pseudopod ancillary modes) but none of what makes the sandbox stick to
+  // a branch instead of re-deciding every cycle. Each knob mirrors one
+  // sandbox mechanism; every default below reproduces the pre-port
+  // behaviour bit-for-bit, navigation_tgmppi_tight.yaml turns them on with
+  // the frozen sandbox values (v7_benchmark.py amoeba config).
+  //  - pseudopods.py BranchTracker: greedy identity matching of this
+  //    reflood's pseudopods against the previous ones (0.5*mean resampled
+  //    centerline distance + 0.5*endpoint distance <= match_distance).
+  //    A tracked pseudopod keeps its ancillary SLOT (row block, published
+  //    path index, group key) across refloods instead of being re-sorted
+  //    by promise every rebuild.
+  bool tgmppi_pod_tracking{false};
+  float tgmppi_pod_match_distance{1.0f};
+  //  - mppi.py _select_committed_mode(): the grouped update keeps the
+  //    currently selected group for at least min_dwell cycles, and only
+  //    switches to a challenger that beats it by switch_margin (free-energy
+  //    units) for confirm_cycles consecutive cycles. Defaults (0 / 1 / 0)
+  //    reduce to "best group every cycle" = today's V3 behaviour.
+  //    NOTE: the sandbox's 0.3 margin is in ITS cost units (lam=0.3); Nav2
+  //    critic costs are on a different scale -- calibrate from the
+  //    "[TGMPPI] mode switch" debug log before trusting a value.
+  int tgmppi_mode_min_dwell{0};
+  int tgmppi_mode_confirm_cycles{1};
+  float tgmppi_mode_switch_margin{0.0f};
+  //  - mppi.py mode_warm_start: each pseudopod's ancillary reference is
+  //    blended with that SAME mode's local weighted mean from the previous
+  //    cycle (shifted one step, sandbox mode_nominals), so a mode's sampling
+  //    centre moves continuously instead of jumping to a fresh reference.
+  //    Needs tgmppi_grouped_update (that's where per-group means exist) and
+  //    stable keys (tgmppi_pod_tracking) to mean anything.
+  float tgmppi_mode_warm_start{0.0f};
+  //  - AmoebaHybrid gate_rate: the seeded fraction ramps in at this rate
+  //    on entering ASSIST (level += rate*(target-level)) instead of
+  //    switching on at full strength in one cycle. 1.0 = instant = today.
+  float tgmppi_assist_ramp_rate{1.0f};
+  //  - AmoebaHybrid bias_deadband: pseudopod-reference heading errors
+  //    smaller than this (rad) are treated as noise and produce no yaw
+  //    command, so a few degrees of grid jitter can't flip w's sign.
+  float tgmppi_bias_deadband{0.0f};
+
   // amoeba_sandbox spacetime.py Phase 1 port (2026-09-13): opt-in extra
   // sampling modes ("wait"/"detour") built from a time-expanded (x,y,t)
   // search against a real moving obstacle, alongside the ordinary

@@ -4,11 +4,17 @@
 amcl:
   ros__parameters:
     use_sim_time: false
-    alpha1: 0.4
-    alpha2: 0.2
-    alpha3: 0.2
-    alpha4: 0.4
-    alpha5: 0.2
+    # Matched to navigation_tgmppi_tight.yaml (2026-09-14, was previously
+    # silently different -- 0.4/0.2/0.2/0.4/0.2 and max_beams:60 -- an
+    # un-fixed gap from the 2026-09-09 matching pass, which only covered
+    # MPPI-side params). Gazebo wheel odometry is substantially cleaner
+    # than physical skid-steer odometry; large motion-noise values made
+    # AMCL jump map->odom while yawing.
+    alpha1: 0.08
+    alpha2: 0.05
+    alpha3: 0.05
+    alpha4: 0.08
+    alpha5: 0.05
     base_frame_id: "base_link"
     beam_skip_distance: 0.5
     beam_skip_error_threshold: 0.9
@@ -20,7 +26,7 @@ amcl:
     laser_max_range: 100.0
     laser_min_range: -1.0
     laser_model_type: "likelihood_field"
-    max_beams: 60
+    max_beams: 120
     max_particles: 2000
     min_particles: 500
     odom_frame_id: "odom"
@@ -34,13 +40,22 @@ amcl:
     sigma_hit: 0.2
     tf_broadcast: true
     transform_tolerance: 1.0
-    update_min_a: 0.1
-    update_min_d: 0.1
-    z_hit: 0.9
+    update_min_a: 0.12     # matched to navigation_tgmppi_tight.yaml (2026-09-14):
+                            # was 0.1, same "converge faster in tight/dynamic
+                            # spaces" reasoning as the tgmppi yaml's comment
+    update_min_d: 0.08     # was 0.1, same reasoning
+    z_hit: 0.75            # matched to navigation_tgmppi_tight.yaml (2026-09-14):
+                            # the actual dynamic-obstacle AMCL fix -- without this,
+                            # vanilla would still suffer the z_rand-corruption bug
+                            # tgmppi no longer has, an unfair comparison in any
+                            # dynamic-world test
     z_max: 0.05
-    z_rand: 0.05
+    z_rand: 0.20            # was 0.05 -- see navigation_tgmppi_tight.yaml's
+                            # z_rand comment for the full root-cause explanation
     z_short: 0.0
-    scan_topic: front_scan   # AMCL takes ONE lidar; the rear one feeds the costmaps only
+    scan_topic: front_scan   # 2026-09-15: front lidar only, matching the real-robot trials
+                             # (no rear lidar on hardware). The merged /scan was measured
+                             # accurate (median 1.4 cm vs known walls) -- not a fix, a match.
 
 amcl_map_client:
   ros__parameters:
@@ -61,6 +76,7 @@ bt_navigator:
     enable_groot_monitoring: true
     groot_zmq_publisher_port: 1666
     groot_zmq_server_port: 1667
+    default_nav_to_pose_bt_xml: /home/saran/robohouse_ws/src/susag_nav2/behavior_trees/navigate_to_pose_w_replanning_no_spin.xml  # 2026-09-15: default tree minus Spin recovery (both tight yamls)
     plugin_lib_names:
     - nav2_compute_path_to_pose_action_bt_node
     - nav2_compute_path_through_poses_action_bt_node
@@ -126,6 +142,9 @@ controller_server:
     # MPPI parameters
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
+      # prune_distance: matched to navigation_tgmppi_tight.yaml (2026-09-15) so both
+      # controllers track the same plan extent; see the comment there.
+      prune_distance: 10.0
 
       # --- SLIP MPPI variant selection ---
       mppi_variant: "vanilla"             # vanilla | log | lowpass | biased
@@ -289,7 +308,7 @@ global_costmap:
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
-        observation_sources: front_scan rear_scan
+        observation_sources: front_scan   # 2026-09-15: front only, matches trials (rear_scan block kept, unused)
         footprint_clearing_enabled: true
         max_obstacle_height: 2.0
         combination_method: 1
@@ -356,8 +375,8 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         enabled: true
-        inflation_radius: 0.60
-        cost_scaling_factor: 10.0
+        inflation_radius: 0.40  # matched to navigation_tgmppi_tight.yaml (2026-09-14)
+        cost_scaling_factor: 6.0  # matched to navigation_tgmppi_tight.yaml (2026-09-14)
         inflate_unknown: false
         inflate_around_unknown: true
       always_send_full_costmap: true
@@ -371,7 +390,8 @@ local_costmap:
       publish_frequency: 2.0
       global_frame: odom
       robot_base_frame: base_link
-      footprint_padding: 0.03
+      footprint_padding: 0.02  # matched to navigation_tgmppi_tight.yaml (2026-09-14);
+                                # global costmap's footprint_padding (0.03) already matched
       rolling_window: true
       always_send_full_costmap: true   # RViz "No map received" guard: a rolling costmap otherwise sends only updates once its origin stops moving
       width: 5
@@ -388,7 +408,7 @@ local_costmap:
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
-        observation_sources: front_scan rear_scan
+        observation_sources: front_scan   # 2026-09-15: front only, matches trials (rear_scan block kept, unused)
         footprint_clearing_enabled: true
         max_obstacle_height: 2.0
         combination_method: 1
@@ -445,8 +465,8 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         enabled: true
-        inflation_radius: 0.60
-        cost_scaling_factor: 10.0
+        inflation_radius: 0.40  # matched to navigation_tgmppi_tight.yaml (2026-09-14)
+        cost_scaling_factor: 6.0  # matched to navigation_tgmppi_tight.yaml (2026-09-14)
         inflate_unknown: false
         inflate_around_unknown: true
 

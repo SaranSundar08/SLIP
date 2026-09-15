@@ -111,20 +111,27 @@ def generate_launch_description():
 
     # Front + rear scans are separate in sim; merge them into a single /scan
     # (ros2_laser_scan_merger + pointcloud_to_laserscan). Toggle with merge:=false.
-    # laser_merger = IncludeLaunchDescription(
-    #     PythonLaunchDescriptionSource([
-    #         PathJoinSubstitution([
-    #             FindPackageShare('ros2_laser_scan_merger'),
-    #             'launch',
-    #             'merge_2_scan.launch.py'
-    #         ])
-    #     ]),
-    #     condition=IfCondition(LaunchConfiguration('merge'))
-    # )
+    # Wired in 2026-09-14 (offsets verified against the URDF; merged scan
+    # measured accurate to ~1.4 cm median). Since 2026-09-15 AMCL and the
+    # costmaps use front_scan only (matches the real robot), so `merge`
+    # defaults to false; pass merge:=true to bring the merger up.
+    laser_merger = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare('ros2_laser_scan_merger'),
+                'launch',
+                'merge_2_scan.launch.py'
+            ])
+        ]),
+        condition=IfCondition(LaunchConfiguration('merge'))
+    )
 
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='true'),
-        DeclareLaunchArgument('merge', default_value='true',
+        # 2026-09-15: default off -- AMCL and both costmaps use front_scan only
+        # (matches the real robot, which has no rear lidar), so nothing consumes
+        # the merged /scan. merge:=true still brings the merger up on demand.
+        DeclareLaunchArgument('merge', default_value='false',
                               description='Run the front/rear laser scan merger'),
         DeclareLaunchArgument('world_idx', default_value='0',
                               description='BARN world index 0-299'),
@@ -138,5 +145,5 @@ def generate_launch_description():
         gazebo_server,
         gazebo_client,
         urdf_spawn_node,
-        # laser_merger,
+        laser_merger,
     ])

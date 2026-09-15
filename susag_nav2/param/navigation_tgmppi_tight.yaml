@@ -56,7 +56,9 @@ amcl:
                             # environments with obstacles the localization map doesn't
                             # know about.
     z_short: 0.0
-    scan_topic: front_scan   # AMCL takes ONE lidar; the rear one feeds the costmaps only
+    scan_topic: front_scan   # 2026-09-15: front lidar only, matching the real-robot trials
+                             # (no rear lidar on hardware). The merged /scan was measured
+                             # accurate (median 1.4 cm vs known walls) -- not a fix, a match.
 
 amcl_map_client:
   ros__parameters:
@@ -77,6 +79,7 @@ bt_navigator:
     enable_groot_monitoring: true
     groot_zmq_publisher_port: 1666
     groot_zmq_server_port: 1667
+    default_nav_to_pose_bt_xml: /home/saran/robohouse_ws/src/susag_nav2/behavior_trees/navigate_to_pose_w_replanning_no_spin.xml  # 2026-09-15: default tree minus Spin recovery (both tight yamls)
     plugin_lib_names:
     - nav2_compute_path_to_pose_action_bt_node
     - nav2_compute_path_through_poses_action_bt_node
@@ -142,6 +145,16 @@ controller_server:
     # TgMppi (shape-conditioned MPPI) parameters
     FollowPath:
       plugin: "nav2_tgmppi_controller::TgMppiController"
+      # prune_distance (2026-09-15): the transformed plan handed to the controller
+      # is cut this far AHEAD of the robot (nav2 default 1.5 m). The TG-MPPI flow
+      # field treats the END of that plan as "the goal"; with a 2.5 m body radius
+      # a 1.5 m stub always ends INSIDE the body, so flow_field.cpp takes the
+      # goal_inside branch and never extracts pseudopods (the sandbox feeds the
+      # flood the full A* path, so its "goal" is the real one, outside the window).
+      # Large value = "plan up to the local-costmap edge" (path_handler stops at
+      # the window boundary regardless), which is what the sandbox sees. Dynamic
+      # param -- can also be set live. Matched in navigation_sim_tight.yaml.
+      prune_distance: 10.0
 
       # --- TG-MPPI flow bias (this controller's core behavior) -------------
       # The water field is flooded from the local costmap and biases the whole
@@ -167,7 +180,55 @@ controller_server:
       # blending across all of them. Dynamic param -- flip live with
       # `ros2 param set /controller_server FollowPath.tgmppi_grouped_update
       # true|false` to test without relaunching.
-      tgmppi_grouped_update: false
+      tgmppi_grouped_update: true    # 2026-09-15: ON -- the stabilizers below live in
+                                     # the grouped update; the frozen sandbox amoeba is
+                                     # grouped_sampling=True (v7_benchmark.py:63), so
+                                     # false was never the sandbox config anyway.
+      # --- 2026-09-15 stabilizer port (sandbox frozen values) ---------------
+      # Each knob's default in the plugin reproduces the pre-port behaviour;
+      # these are the amoeba_sandbox values (AmoebaHybrid / MPPI defaults used
+      # by the frozen v7_benchmark.py amoeba config). See optimizer_settings.hpp.
+      tgmppi_pod_tracking: true          # pseudopods.py BranchTracker
+      tgmppi_pod_match_distance: 1.0     #   match_distance (m)
+      tgmppi_mode_min_dwell: 10          # mppi.py mode_min_dwell (cycles)
+      tgmppi_mode_confirm_cycles: 3      # mppi.py mode_confirm_cycles
+      tgmppi_mode_switch_margin: 0.3     # mppi.py mode_switch_margin -- SANDBOX cost units;
+                                         # calibrate against the "[TGMPPI] mode switch" debug
+                                         # log (Nav2 critic costs are on a different scale)
+      tgmppi_mode_warm_start: 0.7        # mppi.py mode_warm_start
+      tgmppi_assist_ramp_rate: 0.2       # AmoebaHybrid gate_rate
+      tgmppi_bias_deadband: 0.08         # AmoebaHybrid bias_deadband (rad)
+      # amoeba_sandbox spacetime.py Phase 1 port (2026-09-13). UNLIKE
+      # tgmppi_grouped_update above, this is read ONCE at controller
+      # configure to set up the obstacle subscriptions -- not a live
+      # ros2 param set toggle, needs a relaunch to take effect. Only
+      # meaningful with world_48_dynamic (susag_gazebo_plugins) running;
+      # inert (never subscribes, never triggers) otherwise.
+      tgmppi_spacetime_enabled: true
+      tgmppi_spacetime_obstacle_topics:
+        - "/moving_obstacle_1/ground_truth/odom"
+        - "/moving_obstacle_2/ground_truth/odom"
+        - "/moving_obstacle_3/ground_truth/odom"
+        - "/moving_obstacle_4/ground_truth/odom"
+        - "/moving_obstacle_5/ground_truth/odom"
+      tgmppi_spacetime_obstacle_radius: 0.25   # shared across all five obstacles --
+                                                # world_open_dynamic.world alternates
+                                                # 0.25/0.20m, so 0.25 is a safe margin,
+                                                # not exact; per-obstacle radii would
+                                                # need a real (not yet built) config
+                                                # list instead of one scalar. Note:
+                                                # trySpacetimeAlternatives() budgets
+                                                # at most 2 extra modes per cycle
+                                                # regardless of how many obstacles are
+                                                # tracked, so 5 obstacles raises the
+                                                # difficulty of picking well, not the
+                                                # risk of overflowing ancillary-mode
+                                                # storage (kMaxAncillaryModes=5).
+      tgmppi_spacetime_horizon: 3.0
+      tgmppi_spacetime_dt_layer: 0.25
+      tgmppi_spacetime_res: 0.10
+      tgmppi_spacetime_window: 2.5
+      tgmppi_spacetime_relevance: 0.0
       tgmppi_debug: true             # geodesic body/membrane markers (light enough for normal use)
       tgmppi_ancillary_debug: true   # three lightweight /tgmppi/ancillary_path_* topics
 
@@ -213,7 +274,15 @@ controller_server:
       vx_std: 0.3   # let MPPI explore slowing down before tight turns
       vy_std: 0.2
       wz_std: 0.7   # broader angular exploration for tight BARN corners
-      vx_max: 0.35  # avoid the observed wide-radius near-max-speed turns
+      vx_max: 0.35  # REVERTED 2026-09-14: bumped to 0.5 for the open-world
+                    # space-time test, then reverted after collisions
+                    # reappeared with 5 obstacles live -- isolating whether
+                    # speed or obstacle density (or both) is the cause before
+                    # touching anything else. If this run is clean, speed was
+                    # the/a real factor -- the original "wide-radius near-max-
+                    # speed turns" warning was correct and this needs a real
+                    # tuning pass (critic weights re-checked at the new speed),
+                    # not just a bigger number.
       vx_min: -0.35
       vy_max: 0.5
       wz_max: 1.9
@@ -340,7 +409,7 @@ global_costmap:
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
-        observation_sources: front_scan rear_scan
+        observation_sources: front_scan   # 2026-09-15: front only, matches trials (rear_scan block kept, unused)
         footprint_clearing_enabled: true
         max_obstacle_height: 2.0
         combination_method: 1
@@ -405,7 +474,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         enabled: true
-        inflation_radius: 0.45
+        inflation_radius: 0.40  # 2026-09-15: back from 0.35 (below the 0.36/0.37 m inscribed radius, invalid); matches navigation_sim_tight.yaml
         cost_scaling_factor: 6.0
         inflate_unknown: false
         inflate_around_unknown: true
@@ -436,7 +505,7 @@ local_costmap:
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
-        observation_sources: front_scan rear_scan
+        observation_sources: front_scan   # 2026-09-15: front only, matches trials (rear_scan block kept, unused)
         footprint_clearing_enabled: true
         max_obstacle_height: 2.0
         combination_method: 1
@@ -493,7 +562,7 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         enabled: true
-        inflation_radius: 0.45
+        inflation_radius: 0.40  # 2026-09-15: back from 0.35 (below the 0.36/0.37 m inscribed radius, invalid); matches navigation_sim_tight.yaml
         cost_scaling_factor: 6.0
         inflate_unknown: false
         inflate_around_unknown: true

@@ -155,6 +155,14 @@ void Optimizer::getParams()
   getParam(
     s.tgmppi_reference_infeasible_fallback, "tgmppi_reference_infeasible_fallback", false);
   getParam(s.tgmppi_grouped_update, "tgmppi_grouped_update", false);
+  getParam(s.tgmppi_pod_tracking, "tgmppi_pod_tracking", false);
+  getParam(s.tgmppi_pod_match_distance, "tgmppi_pod_match_distance", 1.0f);
+  getParam(s.tgmppi_mode_min_dwell, "tgmppi_mode_min_dwell", 0);
+  getParam(s.tgmppi_mode_confirm_cycles, "tgmppi_mode_confirm_cycles", 1);
+  getParam(s.tgmppi_mode_switch_margin, "tgmppi_mode_switch_margin", 0.0f);
+  getParam(s.tgmppi_mode_warm_start, "tgmppi_mode_warm_start", 0.0f);
+  getParam(s.tgmppi_assist_ramp_rate, "tgmppi_assist_ramp_rate", 1.0f);
+  getParam(s.tgmppi_bias_deadband, "tgmppi_bias_deadband", 0.0f);
   getParam(s.tgmppi_spacetime_enabled, "tgmppi_spacetime_enabled", false);
   getParam(
     s.tgmppi_spacetime_obstacle_topics, "tgmppi_spacetime_obstacle_topics",
@@ -262,6 +270,21 @@ void Optimizer::reset()
   control_history_[3] = {0.0, 0.0, 0.0};
 
   settings_.constraints = settings_.base_constraints;
+
+  // 2026-09-15 stabilizer state: a new plan/goal starts with no tracked
+  // pseudopods, no committed group, no per-mode memory, assist fully off.
+  tracked_pods_prev_.clear();
+  pod_slot_ids_.fill(-1);
+  display_pods_.clear();
+  display_promises_.clear();
+  ancillary_mode_key_.fill(kNoModeKey);
+  mode_nominals_.clear();
+  selected_mode_key_ = kNoModeKey;
+  selected_mode_age_ = 0u;
+  pending_mode_key_ = kNoModeKey;
+  pending_mode_count_ = 0u;
+  mode_switch_count_ = 0u;
+  assist_level_ = 0.0f;
 
   costs_ = xt::zeros<float>({settings_.batch_size});
   generated_trajectories_.reset(settings_.batch_size, settings_.time_steps);
@@ -400,6 +423,7 @@ void Optimizer::generateNoisedTrajectories()
         *costmap_, path_, s.flow_path_seed, s.flow_viscosity,
         static_cast<float>(state_.pose.pose.position.x),
         static_cast<float>(state_.pose.pose.position.y), s.tgmppi_body_radius);
+      trackPseudopods();
       if (s.tgmppi_ancillary_debug) {
         publishAncillaryPaths();
       }
@@ -588,6 +612,108 @@ void Optimizer::trySpacetimeAlternatives(
   }
 }
 
+void Optimizer::trackPseudopods()
+{
+  const auto & raw = flow_field_.pseudopods();
+  const auto & raw_p = flow_field_.pseudopodPromises();
+  const std::size_t raw_n = std::min(raw.size(), raw_p.size());
+  if (!settings_.tgmppi_pod_tracking) {
+    // Off: byte-identical to reading flow_field_ directly.
+    display_pods_.assign(raw.begin(), raw.begin() + raw_n);
+    display_promises_.assign(raw_p.begin(), raw_p.begin() + raw_n);
+    return;
+  }
+
+  // amoeba_sandbox pseudopods.py BranchTracker.update(): resample both
+  // centerlines to 32 arc-length points, metric = 0.5*mean point distance
+  // + 0.5*endpoint distance, greedy best-unused match under match_distance,
+  // otherwise a fresh id.
+  constexpr std::size_t kResample = 32;
+  auto resample = [](const std::vector<std::pair<float, float>> & poly) {
+      std::vector<std::pair<float, float>> out(kResample);
+      float length = 0.0f;
+      for (std::size_t k = 1; k < poly.size(); ++k) {
+        length += std::hypot(poly[k].first - poly[k - 1].first, poly[k].second - poly[k - 1].second);
+      }
+      for (std::size_t i = 0; i < kResample; ++i) {
+        out[i] = pointAtArcLength(poly, length * static_cast<float>(i) / (kResample - 1));
+      }
+      return out;
+    };
+  std::vector<std::vector<std::pair<float, float>>> prev_samples;
+  prev_samples.reserve(tracked_pods_prev_.size());
+  for (const auto & old : tracked_pods_prev_) {prev_samples.push_back(resample(old.centerline));}
+  std::vector<bool> used(tracked_pods_prev_.size(), false);
+  std::vector<TrackedPod> tracked;
+  for (std::size_t k = 0; k < raw_n; ++k) {
+    if (raw[k].size() < 2) {continue;}
+    const auto sample = resample(raw[k]);
+    int best = -1;
+    float best_metric = std::numeric_limits<float>::max();
+    for (std::size_t j = 0; j < tracked_pods_prev_.size(); ++j) {
+      if (used[j]) {continue;}
+      float mean_d = 0.0f;
+      for (std::size_t i = 0; i < kResample; ++i) {
+        mean_d += std::hypot(
+          sample[i].first - prev_samples[j][i].first, sample[i].second - prev_samples[j][i].second);
+      }
+      mean_d /= static_cast<float>(kResample);
+      const auto & old_end = tracked_pods_prev_[j].centerline.back();
+      const float end_d = std::hypot(raw[k].back().first - old_end.first, raw[k].back().second - old_end.second);
+      const float metric = 0.5f * mean_d + 0.5f * end_d;
+      if (metric < best_metric) {best_metric = metric; best = static_cast<int>(j);}
+    }
+    int id;
+    if (best >= 0 && best_metric <= settings_.tgmppi_pod_match_distance) {
+      used[best] = true;
+      id = tracked_pods_prev_[best].id;
+    } else {
+      id = next_pod_id_++;
+    }
+    tracked.push_back({id, raw[k], raw_p[k]});
+  }
+
+  // Slot assignment: an id that already owns a slot keeps it; ids that
+  // vanished free their slot; new ids take the first free slot (there are
+  // never more than kPodSlots pseudopods, the flood extracts <= 3).
+  std::array<int, kPodSlots> new_slots{{-1, -1, -1}};
+  std::vector<bool> placed(tracked.size(), false);
+  for (std::size_t m = 0; m < kPodSlots; ++m) {
+    if (pod_slot_ids_[m] < 0) {continue;}
+    for (std::size_t k = 0; k < tracked.size(); ++k) {
+      if (!placed[k] && tracked[k].id == pod_slot_ids_[m]) {
+        new_slots[m] = tracked[k].id;
+        placed[k] = true;
+        break;
+      }
+    }
+  }
+  for (std::size_t k = 0; k < tracked.size(); ++k) {
+    if (placed[k]) {continue;}
+    for (std::size_t m = 0; m < kPodSlots; ++m) {
+      if (new_slots[m] < 0) {
+        new_slots[m] = tracked[k].id;
+        placed[k] = true;
+        break;
+      }
+    }
+  }
+  pod_slot_ids_ = new_slots;
+  display_pods_.assign(kPodSlots, std::vector<std::pair<float, float>>{});
+  display_promises_.assign(kPodSlots, 0.0f);
+  for (std::size_t m = 0; m < kPodSlots; ++m) {
+    if (new_slots[m] < 0) {continue;}
+    for (const auto & pod : tracked) {
+      if (pod.id == new_slots[m]) {
+        display_pods_[m] = pod.centerline;
+        display_promises_[m] = pod.promise;
+        break;
+      }
+    }
+  }
+  tracked_pods_prev_ = std::move(tracked);
+}
+
 void Optimizer::applyFlowBias()
 {
   const auto & s = settings_;
@@ -598,6 +724,7 @@ void Optimizer::applyFlowBias()
       *costmap_, path_, s.flow_path_seed, s.flow_viscosity,
       static_cast<float>(state_.pose.pose.position.x),
       static_cast<float>(state_.pose.pose.position.y), s.tgmppi_body_radius);
+    trackPseudopods();
     if (s.tgmppi_ancillary_debug) {
       publishAncillaryPaths();
     }
@@ -625,6 +752,10 @@ void Optimizer::applyFlowBias()
       flow_clear_cycles_ = 0u;
     }
   }
+  // Stabilizer: rate-limited assist level (sandbox gate_rate). ramp=1.0
+  // makes this exactly 1 in ASSIST / 0 in NORMAL, i.e. today's behaviour.
+  const float ramp = std::clamp(s.tgmppi_assist_ramp_rate, 0.0f, 1.0f);
+  assist_level_ += ramp * ((tgmppi_assist_active_ ? 1.0f : 0.0f) - assist_level_);
   if (!tgmppi_assist_active_) {
     ancillary_mode_valid_.fill(false);
     ancillary_mode_samples_.fill(0u);
@@ -641,7 +772,7 @@ void Optimizer::applyFlowBias()
     return;  // NORMAL: protect ordinary global-path tracking
   }
 
-  const float frac = std::clamp(s.tgmppi_bias_strength, 0.0f, 1.0f);
+  const float frac = std::clamp(s.tgmppi_bias_strength, 0.0f, 1.0f) * assist_level_;
   if (frac <= 0.0f) {
     return;
   }
@@ -661,12 +792,22 @@ void Optimizer::applyFlowBias()
     }
   }
 
-  const auto & pods = flow_field_.pseudopods();
-  const auto & promises = flow_field_.pseudopodPromises();
+  const auto & pods = display_pods_;          // slot-ordered (see trackPseudopods)
+  const auto & promises = display_promises_;
   const std::size_t mode_count = std::min(pods.size(), promises.size());
-  if (mode_count == 0) {
+  std::size_t nonempty_pods = 0;
+  for (std::size_t m = 0; m < mode_count; ++m) {
+    if (pods[m].size() >= 2) {++nonempty_pods;}
+  }
+  if (nonempty_pods == 0) {
     return;  // goal inside body or no distinct reachable membrane exit
   }
+  for (std::size_t m = 0; m < ancillary_mode_key_.size(); ++m) {
+    ancillary_mode_key_[m] = (m < kPodSlots) ?
+      (s.tgmppi_pod_tracking ? pod_slot_ids_[m] : static_cast<int>(m)) :
+      kSpacetimeKeyBase + static_cast<int>(m);
+  }
+  const float warm = std::clamp(s.tgmppi_mode_warm_start, 0.0f, 1.0f);
 
   // Convert each geodesic centerline into a finite-horizon diff-drive
   // ancillary controller. This is display-independent and produces a genuine
@@ -701,6 +842,15 @@ void Optimizer::applyFlowBias()
   // optimizer_settings.hpp. Byte-identical to the pre-refactor loop body
   // when min_speed_ratio==0.15 (the default).
   auto generate_pod_reference = [&](std::size_t m, float min_speed_ratio) -> bool {
+      const std::pair<std::vector<float>, std::vector<float>> * warm_prev = nullptr;
+      if (warm > 0.0f && m < ancillary_mode_key_.size()) {
+        const auto it = mode_nominals_.find(ancillary_mode_key_[m]);
+        if (it != mode_nominals_.end() && it->second.first.size() == s.time_steps &&
+          it->second.second.size() == s.time_steps)
+        {
+          warm_prev = &it->second;
+        }
+      }
       mode_v[m].assign(s.time_steps, 0.0f);
       mode_w[m].assign(s.time_steps, 0.0f);
       mode_x[m].clear();
@@ -735,9 +885,10 @@ void Optimizer::applyFlowBias()
         const float ex = pods[m][target].first - x;
         const float ey = pods[m][target].second - y;
         const float want = std::atan2(ey, ex);
-        const float err = static_cast<float>(
+        float err = static_cast<float>(
           angles::shortest_angular_distance(yaw, want));
-        const float w = std::clamp(
+        if (std::fabs(err) < s.tgmppi_bias_deadband) {err = 0.0f;}  // stabilizer: deadband
+        float w = std::clamp(
           s.tgmppi_bias_gain * err, -s.constraints.wz, s.constraints.wz);
         const float nominal_v = std::fabs(control_sequence_.vx(t));
         const float cruise = std::clamp(
@@ -746,7 +897,14 @@ void Optimizer::applyFlowBias()
         const float endpoint_dist = std::hypot(
           pods[m].back().first - x, pods[m].back().second - y);
         const float stop_scale = std::clamp(endpoint_dist / 0.25f, 0.25f, 1.0f);
-        const float v = cruise * turn_scale * stop_scale;
+        float v = cruise * turn_scale * stop_scale;
+        if (warm_prev != nullptr) {
+          // stabilizer: sandbox mode_warm_start against this mode's own
+          // previous local mean, shifted one step (mode_nominals).
+          const std::size_t tp = std::min<std::size_t>(t + 1, s.time_steps - 1);
+          v = warm * warm_prev->first[tp] + (1.0f - warm) * v;
+          w = warm * warm_prev->second[tp] + (1.0f - warm) * w;
+        }
         mode_v[m][t] = v;
         mode_w[m][t] = w;
         yaw += w * s.model_dt;
@@ -773,6 +931,12 @@ void Optimizer::applyFlowBias()
     };
 
   for (std::size_t m = 0; m < mode_count; ++m) {
+    if (pods[m].size() < 2) {
+      // empty tracked slot (tgmppi_pod_tracking): no pseudopod here this reflood
+      mode_valid[m] = false;
+      if (m < ancillary_mode_valid_.size()) {ancillary_mode_valid_[m] = false;}
+      continue;
+    }
     bool valid = generate_pod_reference(m, s.tgmppi_reference_min_speed_ratio);
     if (!valid && s.tgmppi_reference_infeasible_fallback &&
       s.tgmppi_reference_min_speed_ratio > 0.15f)
@@ -856,6 +1020,11 @@ void Optimizer::applyFlowBias()
     ancillary_rollout_x_[m] = mode_x[m];
     ancillary_rollout_y_[m] = mode_y[m];
     ancillary_mode_rejoin_prior_[m] = 0.0f;   // not path-rejoin-scored, unlike ordinary pseudopods
+    // Extras are appended at mode_count, which is < kPodSlots when tracking
+    // is off and fewer than 3 pseudopods exist -- re-key by what the slot
+    // actually holds so a space-time extra never shares a pseudopod's key
+    // (that would corrupt hysteresis + warm-start memory).
+    ancillary_mode_key_[m] = kSpacetimeKeyBase + static_cast<int>(m);
   }
 
   std::vector<std::size_t> active_modes;
@@ -998,7 +1167,7 @@ bool Optimizer::isLocalPathBlocked() const
 
 void Optimizer::publishAncillaryPaths()
 {
-  const auto & pods = flow_field_.pseudopods();
+  const auto & pods = display_pods_;  // slot-ordered: path i == ancillary slot i
   const std::string frame = costmap_ros_->getGlobalFrameID();
   for (std::size_t i = 0; i < ancillary_path_pubs_.size(); ++i) {
     nav_msgs::msg::Path path;
@@ -1219,10 +1388,11 @@ void Optimizer::publishFlowDebug()
       ancillary_mode_samples_.begin(), ancillary_mode_samples_.end(), 0u);
     std::snprintf(
       buf, sizeof(buf),
-      "TGMPPI %s: body %zu, membrane %zu, pods %zu, safe %u, biased %u, wait %u (%.2f ms)",
+      "TGMPPI %s: body %zu, membrane %zu, pods %zu, safe %u, biased %u, wait %u, sel %d age %u sw %u (%.2f ms)",
       tgmppi_assist_active_ ? "ASSIST" : "NORMAL",
       flow_field_.bodyCellCount(), flow_field_.membraneCellCount(),
       flow_field_.pseudopods().size(), safe_modes, assigned, flow_wait_samples_,
+      selected_mode_key_, selected_mode_age_, mode_switch_count_,
       flow_field_.buildMs());
   } else {
     std::snprintf(buf, sizeof(buf), "FLOW: no field");
@@ -1390,22 +1560,23 @@ void Optimizer::updateControlSequence()
     // unbiased/nominal remainder) -- always present, covering the whole
     // batch by itself when bias produced no groups this cycle, which is
     // exactly the single-shared-softmax case below.
-    struct Group {unsigned int start; unsigned int count;};
+    struct Group {unsigned int start; unsigned int count; int key;};
     std::vector<Group> groups;
     unsigned int covered_end = 0;
     for (std::size_t m = 0; m < ancillary_mode_valid_.size(); ++m) {
       if (ancillary_mode_valid_[m] && ancillary_mode_samples_[m] > 0) {
-        groups.push_back({ancillary_mode_row_start_[m], ancillary_mode_samples_[m]});
+        groups.push_back(
+          {ancillary_mode_row_start_[m], ancillary_mode_samples_[m], ancillary_mode_key_[m]});
         covered_end = std::max(
           covered_end, ancillary_mode_row_start_[m] + ancillary_mode_samples_[m]);
       }
     }
     if (flow_wait_samples_ > 0) {
-      groups.push_back({covered_end, flow_wait_samples_});
+      groups.push_back({covered_end, flow_wait_samples_, kWaitModeKey});
       covered_end += flow_wait_samples_;
     }
     if (covered_end < s.batch_size) {
-      groups.push_back({covered_end, s.batch_size - covered_end});
+      groups.push_back({covered_end, s.batch_size - covered_end, kFallbackModeKey});
     }
 
     // Per-group local softmax + free energy (sandbox's mode_statistics()):
@@ -1414,6 +1585,7 @@ void Optimizer::updateControlSequence()
     float best_free_energy = std::numeric_limits<float>::max();
     std::size_t best_group = 0;
     std::vector<xt::xtensor<float, 1>> group_softmax(groups.size());
+    std::vector<float> group_free_energy(groups.size(), 0.0f);
     for (std::size_t g = 0; g < groups.size(); ++g) {
       auto && group_costs = xt::eval(
         xt::view(costs_, xt::range(groups[g].start, groups[g].start + groups[g].count)));
@@ -1423,21 +1595,104 @@ void Optimizer::updateControlSequence()
       group_softmax[g] = xt::eval(likelihood / likelihood_sum);
       const float mean_likelihood = likelihood_sum / static_cast<float>(groups[g].count);
       const float free_energy = cmin - s.temperature * std::log(mean_likelihood);
+      group_free_energy[g] = free_energy;
       if (free_energy < best_free_energy) {
         best_free_energy = free_energy;
         best_group = g;
       }
     }
 
-    // sandbox's select_mode(): pick the single lowest-free-energy group and
-    // use ONLY its own rows + local weights as the new control sequence --
-    // no cross-cycle hysteresis (see docstring: needs branch identity this
-    // project doesn't have yet).
-    const auto & chosen = groups[best_group];
+    // 2026-09-15 stabilizer port of the sandbox's _select_committed_mode():
+    // dwell / switch margin / confirmation on top of the V3 best-group rule.
+    // With the default knobs (dwell 0, confirm 1, margin 0) this is exactly
+    // "best group every cycle" (ties keep the current group).
+    constexpr std::size_t kNoGroup = std::numeric_limits<std::size_t>::max();
+    std::size_t current_group = kNoGroup;
+    for (std::size_t g = 0; g < groups.size(); ++g) {
+      if (groups[g].key == selected_mode_key_) {current_group = g; break;}
+    }
+    std::size_t chosen_group = best_group;
+    const char * reason = "best";
+    const unsigned int min_dwell = static_cast<unsigned int>(std::max(0, s.tgmppi_mode_min_dwell));
+    const unsigned int confirm_cycles =
+      static_cast<unsigned int>(std::max(1, s.tgmppi_mode_confirm_cycles));
+    if (current_group == kNoGroup) {
+      chosen_group = best_group;
+      reason = selected_mode_key_ == kNoModeKey ? "initial" : "current_unavailable";
+    } else if (best_group == current_group) {
+      chosen_group = current_group;
+      reason = "best";
+      pending_mode_key_ = kNoModeKey;
+      pending_mode_count_ = 0u;
+    } else if (selected_mode_age_ < min_dwell) {
+      chosen_group = current_group;
+      reason = "minimum_dwell";
+    } else if (group_free_energy[best_group] + s.tgmppi_mode_switch_margin >=
+      group_free_energy[current_group])
+    {
+      chosen_group = current_group;
+      reason = "switch_margin";
+      pending_mode_key_ = kNoModeKey;
+      pending_mode_count_ = 0u;
+    } else {
+      if (pending_mode_key_ == groups[best_group].key) {
+        ++pending_mode_count_;
+      } else {
+        pending_mode_key_ = groups[best_group].key;
+        pending_mode_count_ = 1u;
+      }
+      if (pending_mode_count_ >= confirm_cycles) {
+        chosen_group = best_group;
+        reason = "confirmed_improvement";
+      } else {
+        chosen_group = current_group;
+        reason = "awaiting_confirmation";
+      }
+    }
+    const bool switched =
+      selected_mode_key_ != kNoModeKey && groups[chosen_group].key != selected_mode_key_;
+    if (switched) {
+      ++mode_switch_count_;
+      selected_mode_age_ = 0u;
+      pending_mode_key_ = kNoModeKey;
+      pending_mode_count_ = 0u;
+      RCLCPP_INFO(
+        logger_, "[TGMPPI] mode switch %d -> %d (%s), FE new %.3f vs old %.3f",
+        selected_mode_key_, groups[chosen_group].key, reason,
+        group_free_energy[chosen_group],
+        current_group == kNoGroup ? 0.0f : group_free_energy[current_group]);
+    } else {
+      ++selected_mode_age_;
+    }
+    selected_mode_key_ = groups[chosen_group].key;
+    (void)reason;
+
+    // Per-mode memory for tgmppi_mode_warm_start (sandbox mode_nominals):
+    // every group's own local weighted mean, keyed by group key; keys that
+    // did not exist this cycle are forgotten. Skipped entirely when the
+    // knob is off, so the default path does no extra work.
+    if (s.tgmppi_mode_warm_start > 0.0f) {
+      std::map<int, std::pair<std::vector<float>, std::vector<float>>> fresh;
+      for (std::size_t g = 0; g < groups.size(); ++g) {
+        const unsigned int g0 = groups[g].start;
+        const unsigned int g1 = groups[g].start + groups[g].count;
+        auto && sm = xt::eval(xt::view(group_softmax[g], xt::all(), xt::newaxis()));
+        auto && mean_vx = xt::eval(
+          xt::sum(xt::view(state_.cvx, xt::range(g0, g1), xt::all()) * sm, 0, immediate));
+        auto && mean_wz = xt::eval(
+          xt::sum(xt::view(state_.cwz, xt::range(g0, g1), xt::all()) * sm, 0, immediate));
+        fresh[groups[g].key] = {
+          std::vector<float>(mean_vx.begin(), mean_vx.end()),
+          std::vector<float>(mean_wz.begin(), mean_wz.end())};
+      }
+      mode_nominals_ = std::move(fresh);
+    }
+
+    const auto & chosen = groups[chosen_group];
     const unsigned int row0 = chosen.start;
     const unsigned int row1 = chosen.start + chosen.count;
     auto && softmax_extended = xt::eval(
-      xt::view(group_softmax[best_group], xt::all(), xt::newaxis()));
+      xt::view(group_softmax[chosen_group], xt::all(), xt::newaxis()));
     xt::noalias(control_sequence_.vx) = xt::sum(
       xt::view(state_.cvx, xt::range(row0, row1), xt::all()) * softmax_extended, 0, immediate);
     xt::noalias(control_sequence_.wz) = xt::sum(

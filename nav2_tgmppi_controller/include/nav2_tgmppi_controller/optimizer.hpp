@@ -16,6 +16,8 @@
 #define NAV2_TGMPPI_CONTROLLER__OPTIMIZER_HPP_
 
 #include <array>
+#include <limits>
+#include <map>
 #include <string>
 #include <memory>
 #include <mutex>
@@ -335,6 +337,44 @@ protected:
   bool flow_path_blocked_now_{false};
   unsigned int flow_clear_cycles_{0u};
   unsigned int flow_wait_samples_{0u};
+
+  // --- 2026-09-15 stabilizer port (see tgmppi_pod_tracking & friends in
+  // optimizer_settings.hpp). Group keys: pseudopod slots carry the tracked
+  // pseudopod id (or the slot index when tracking is off), spacetime extras
+  // kSpacetimeKeyBase+slot, the wait block kWaitModeKey, the unbiased
+  // remainder kFallbackModeKey (sandbox key -1 = path fallback).
+  static constexpr std::size_t kPodSlots = 3;
+  static constexpr int kNoModeKey = std::numeric_limits<int>::min();
+  static constexpr int kFallbackModeKey = -1;
+  static constexpr int kWaitModeKey = -2;
+  static constexpr int kSpacetimeKeyBase = 1000;
+  struct TrackedPod
+  {
+    int id;
+    std::vector<std::pair<float, float>> centerline;
+    float promise;
+  };
+  std::vector<TrackedPod> tracked_pods_prev_;
+  std::array<int, kPodSlots> pod_slot_ids_{{-1, -1, -1}};
+  int next_pod_id_{0};
+  // Slot-ordered pseudopods actually used for ancillary modes + publishing:
+  // == flow_field_.pseudopods() when tracking is off; with tracking on, a
+  // fixed kPodSlots-long vector where an empty polyline means "no pseudopod
+  // in this slot this reflood" (its mode stays invalid, its path publishes
+  // empty), so a surviving pseudopod never changes slot.
+  std::vector<std::vector<std::pair<float, float>>> display_pods_;
+  std::vector<float> display_promises_;
+  std::array<int, kMaxAncillaryModes> ancillary_mode_key_{};
+  std::map<int, std::pair<std::vector<float>, std::vector<float>>> mode_nominals_;
+  int selected_mode_key_{kNoModeKey};
+  unsigned int selected_mode_age_{0u};
+  int pending_mode_key_{kNoModeKey};
+  unsigned int pending_mode_count_{0u};
+  unsigned int mode_switch_count_{0u};
+  float assist_level_{0.0f};
+  // Runs right after every flow_field_.build(): BranchTracker matching +
+  // slot assignment, fills display_pods_/display_promises_/pod_slot_ids_.
+  void trackPseudopods();
 
   // amoeba_sandbox spacetime.py Phase 1 port: ground-truth moving-obstacle
   // subscriptions (see tgmppi_spacetime_obstacle_topics's docstring in
