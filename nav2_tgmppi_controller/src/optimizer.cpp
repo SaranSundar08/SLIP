@@ -169,6 +169,13 @@ void Optimizer::getParams()
   getParam(s.tgmppi_assist_ramp_rate, "tgmppi_assist_ramp_rate", 1.0f);
   getParam(s.tgmppi_bias_deadband, "tgmppi_bias_deadband", 0.0f);
   getParam(s.tgmppi_pod_cruise_speed, "tgmppi_pod_cruise_speed", 0.18f);
+  getParam(s.tgmppi_group_allocation, "tgmppi_group_allocation", std::string("legacy"));
+  if (s.tgmppi_group_allocation != "legacy" && s.tgmppi_group_allocation != "equal") {
+    RCLCPP_WARN(
+      logger_, "[TG-MPPI] tgmppi_group_allocation '%s' not recognized, using 'legacy'",
+      s.tgmppi_group_allocation.c_str());
+    s.tgmppi_group_allocation = "legacy";
+  }
   getParam(s.tgmppi_spacetime_enabled, "tgmppi_spacetime_enabled", false);
   getParam(
     s.tgmppi_spacetime_obstacle_topics, "tgmppi_spacetime_obstacle_topics",
@@ -965,7 +972,11 @@ void Optimizer::applyFlowBias()
     return;  // NORMAL: protect ordinary global-path tracking
   }
 
-  const float frac = std::clamp(s.tgmppi_bias_strength, 0.0f, 1.0f) * assist_level_;
+  const bool equal_allocation = s.tgmppi_group_allocation == "equal";
+  // "equal" allocation does not use bias_strength, so only the assist ramp can
+  // switch guidance off there.
+  const float frac = equal_allocation ? std::clamp(assist_level_, 0.0f, 1.0f) :
+    std::clamp(s.tgmppi_bias_strength, 0.0f, 1.0f) * assist_level_;
   if (frac <= 0.0f) {
     return;
   }
@@ -1252,20 +1263,34 @@ void Optimizer::applyFlowBias()
   for (std::size_t m = 0; m < mode_v.size(); ++m) {
     if (mode_valid[m]) {active_modes.push_back(m);}
   }
-  // Promise-weighted multimodal allocation. Only this leading fraction of the
-  // batch is recentered; all remaining rows retain vanilla MPPI sampling.
-  const unsigned int n_biased = std::min(
-    s.batch_size,
-    static_cast<unsigned int>(frac * static_cast<float>(s.batch_size)));
-  if (n_biased == 0) {return;}
+  // Multimodal allocation. "legacy": promise-weighted, and only this leading
+  // fraction of the batch is recentred -- all remaining rows keep vanilla MPPI
+  // sampling as one fallback group. "equal": see tgmppi_group_allocation.
   const bool offer_wait = s.flow_wait_enabled && flow_path_blocked_now_;
-  unsigned int n_wait = offer_wait ? static_cast<unsigned int>(std::lround(
-      static_cast<float>(n_biased) * std::clamp(s.flow_wait_fraction, 0.0f, 1.0f))) : 0u;
-  if (offer_wait) {n_wait = std::max(1u, n_wait);}
-  n_wait = std::min(n_wait, n_biased);
-  if (active_modes.empty()) {
-    n_wait = offer_wait ? n_biased : 0u;
+  unsigned int n_biased = 0u;
+  unsigned int n_wait = 0u;
+  if (equal_allocation) {
+    // amoeba_sandbox allocate_group_counts(): each active mode, the wait group if
+    // offered, and the unguided fallback all get a near-equal share of the batch.
+    const unsigned int n_groups =
+      static_cast<unsigned int>(active_modes.size()) + (offer_wait ? 1u : 0u) + 1u;
+    const unsigned int share = s.batch_size / n_groups;
+    n_biased = static_cast<unsigned int>(frac * static_cast<float>(s.batch_size - share));
+    n_wait = offer_wait ? static_cast<unsigned int>(frac * static_cast<float>(share)) : 0u;
+    n_wait = std::min(n_wait, n_biased);
+  } else {
+    n_biased = std::min(
+      s.batch_size,
+      static_cast<unsigned int>(frac * static_cast<float>(s.batch_size)));
+    n_wait = offer_wait ? static_cast<unsigned int>(std::lround(
+        static_cast<float>(n_biased) * std::clamp(s.flow_wait_fraction, 0.0f, 1.0f))) : 0u;
+    if (offer_wait) {n_wait = std::max(1u, n_wait);}
+    n_wait = std::min(n_wait, n_biased);
+    if (active_modes.empty()) {
+      n_wait = offer_wait ? n_biased : 0u;
+    }
   }
+  if (n_biased == 0) {return;}
   const unsigned int pod_budget = n_biased - n_wait;
   if (active_modes.empty() && n_wait == 0u) {
     if (s.tgmppi_ancillary_debug) {publishAncillaryRollouts();}
@@ -1281,7 +1306,8 @@ void Optimizer::applyFlowBias()
   std::vector<float> weights(active_modes.size(), 0.0f);
   float weight_sum = 0.0f;
   for (std::size_t i = 0; i < active_modes.size(); ++i) {
-    weights[i] = std::exp(-(promises_local[active_modes[i]] - best_promise) / temperature);
+    weights[i] = equal_allocation ? 1.0f :
+      std::exp(-(promises_local[active_modes[i]] - best_promise) / temperature);
     weight_sum += weights[i];
   }
 
@@ -1920,6 +1946,22 @@ void Optimizer::updateControlSequence()
         sane.push_back({0u, s.batch_size, kFallbackModeKey});
       }
       groups.swap(sane);
+    }
+
+    // Periodic record of how the batch was actually split, so an allocation mode
+    // can be verified from the log rather than assumed.
+    {
+      static unsigned int alloc_log_cycles = 0u;
+      if (++alloc_log_cycles >= 200u) {
+        alloc_log_cycles = 0u;
+        std::string sizes;
+        for (const auto & grp : groups) {
+          sizes += std::to_string(grp.key) + ":" + std::to_string(grp.count) + " ";
+        }
+        RCLCPP_INFO(
+          logger_, "[TGMPPI alloc] %s -- groups (key:rows): %s",
+          s.tgmppi_group_allocation.c_str(), sizes.c_str());
+      }
     }
 
     // Per-group local softmax + free energy (sandbox's mode_statistics()):

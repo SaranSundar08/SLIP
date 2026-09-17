@@ -98,6 +98,21 @@ def ablation_params(src_path, condition):
     return out.name, changes
 
 
+def group_allocation_params(src_path, mode):
+    """Set TG-MPPI's tgmppi_group_allocation (legacy|equal); no-op on the baseline."""
+    with open(src_path) as f:
+        data = yaml.safe_load(f)
+    fp = data.get('controller_server', {}).get('ros__parameters', {}).get('FollowPath', {})
+    if 'tgmppi_group_allocation' not in fp or fp['tgmppi_group_allocation'] == mode:
+        return src_path, []
+    previous = fp['tgmppi_group_allocation']
+    fp['tgmppi_group_allocation'] = mode
+    out = tempfile.NamedTemporaryFile(mode='w', suffix='_allocation.yaml', delete=False)
+    yaml.safe_dump(data, out)
+    out.close()
+    return out.name, ['tgmppi_group_allocation %s -> %s' % (previous, mode)]
+
+
 def backend_params(src_path, backend):
     """Force TG-MPPI's compute_backend (cpu|cuda).
 
@@ -271,6 +286,14 @@ def launch_nav2(context, nav2_launch_path, configured_params):
     else:
         actions.append(LogInfo(msg="[ablation] unknown '%s' (choices: %s) -- running full"
                                    % (ablation, ', '.join(ABLATIONS))))
+    allocation = LaunchConfiguration('group_allocation').perform(context).strip().lower()
+    if allocation in ('legacy', 'equal'):
+        params_path, gchanges = group_allocation_params(params_path, allocation)
+        if gchanges:
+            actions.append(LogInfo(msg='[group_allocation] ' + '; '.join(gchanges)))
+    elif allocation:
+        actions.append(LogInfo(msg="[group_allocation] ignored: '%s' is not legacy or equal"
+                                   % allocation))
     backend = LaunchConfiguration('backend').perform(context).strip().lower()
     if backend in ('cpu', 'cuda'):
         params_path, bchanges = backend_params(params_path, backend)
@@ -411,6 +434,13 @@ def generate_launch_description():
             default_value='full',
             description="TG-MPPI ablation: 'full', 'no_spacetime', or 'no_topology' "
                         "(plain MPPI + predicted-obstacle critic). No effect on the stock baseline."
+        ),
+
+        DeclareLaunchArgument(
+            name='group_allocation',
+            default_value='',
+            description="TG-MPPI sample split: 'legacy' (bias_strength, large fallback group) "
+                        "or 'equal' (amoeba_sandbox near-equal share per group). Empty = YAML."
         ),
 
         DeclareLaunchArgument(

@@ -141,6 +141,16 @@ struct OptimizerSettings
   // blends it with its own slow previous mean -- so it creeps (bag
   // tgmppi_dyn_20260916_001024: mode 0 mean 0.15-0.22 m/s vs fallback 0.32-0.36).
   float tgmppi_pod_cruise_speed{0.18f};
+  // How the batch is split between guided groups and the unguided fallback
+  // (2026-09-17). "legacy": only tgmppi_bias_strength of the batch is recentred on
+  // the pseudopod / space-time / wait groups and the rest (80% at 0.2) forms one
+  // large fallback group. A group's free energy is bounded below by its minimum
+  // cost, whose expectation falls with group size, so that big group wins the
+  // grouped selection by sample count alone (about 0.9 sigma at 1600 vs 80 rows).
+  // "equal": the amoeba_sandbox rule (grouped_sampling.py allocate_group_counts) --
+  // every group, the fallback included, gets a near-equal share, and
+  // tgmppi_bias_strength is not used. Only the assist ramp scales the guided part.
+  std::string tgmppi_group_allocation{"legacy"};
 
   // amoeba_sandbox spacetime.py Phase 1 port (2026-09-13): opt-in extra
   // sampling modes ("wait"/"detour") built from a time-expanded (x,y,t)

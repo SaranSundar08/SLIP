@@ -162,6 +162,9 @@ controller_server:
       # space, split across pseudopods (distinct sample populations, never
       # averaged into "drive straight in"). Clear path -> plain MPPI.
       tgmppi_bias_strength: 0.2      # Phase 3: conservative seeded fraction; tune only after A/B tests
+      tgmppi_group_allocation: "legacy"  # "legacy" = bias_strength split (80% fallback group);
+                                         # "equal" = amoeba_sandbox near-equal share per group,
+                                         # fallback included (bias_strength then unused)
       tgmppi_bias_gain: 1.0          # Kp: heading error -> yaw rate (1.5 oscillated left/right)
       tgmppi_lookahead_dist: 0.6     # path lookahead for the toward-goal bearing (m)
       tgmppi_goal_dist: 1.0          # within this range of goal, disable tgmppi (plain MPPI docks)
