@@ -19,6 +19,7 @@
 #include <memory>
 #include <mutex>
 #include <stdexcept>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <cmath>
@@ -101,11 +102,15 @@ void Optimizer::initialize(
     ancillary_rollout_pubs_[i]->on_activate();
   }
 
-  // amoeba_sandbox spacetime.py Phase 1 port: one ground-truth Odometry
-  // subscription per configured obstacle topic. No-op (empty vector) when
-  // tgmppi_spacetime_enabled is false or no topics are configured.
-  if (settings_.tgmppi_spacetime_enabled) {
-    spacetime_obstacles_.resize(settings_.tgmppi_spacetime_obstacle_topics.size());
+  // One ground-truth Odometry subscription per configured obstacle topic, used by
+  // the space-time search AND DynamicObstacleCritic (2026-09-15: subscribed whenever
+  // topics are configured, not only with tgmppi_spacetime_enabled). No-op when the
+  // list is empty (the default). Entries are value-initialised and only used once
+  // their topic has delivered a message -- previously resize() left them
+  // uninitialised and the space-time search could read garbage obstacles.
+  if (!settings_.tgmppi_spacetime_obstacle_topics.empty()) {
+    spacetime_obstacles_.assign(settings_.tgmppi_spacetime_obstacle_topics.size(), SpaceTimeObstacle{});
+    spacetime_obstacle_received_.assign(settings_.tgmppi_spacetime_obstacle_topics.size(), false);
     for (std::size_t i = 0; i < settings_.tgmppi_spacetime_obstacle_topics.size(); ++i) {
       spacetime_obstacle_subs_.push_back(
         node->create_subscription<nav_msgs::msg::Odometry>(
@@ -163,6 +168,7 @@ void Optimizer::getParams()
   getParam(s.tgmppi_mode_warm_start, "tgmppi_mode_warm_start", 0.0f);
   getParam(s.tgmppi_assist_ramp_rate, "tgmppi_assist_ramp_rate", 1.0f);
   getParam(s.tgmppi_bias_deadband, "tgmppi_bias_deadband", 0.0f);
+  getParam(s.tgmppi_pod_cruise_speed, "tgmppi_pod_cruise_speed", 0.18f);
   getParam(s.tgmppi_spacetime_enabled, "tgmppi_spacetime_enabled", false);
   getParam(
     s.tgmppi_spacetime_obstacle_topics, "tgmppi_spacetime_obstacle_topics",
@@ -330,7 +336,45 @@ geometry_msgs::msg::TwistStamped Optimizer::evalControl(
     cycle_log_sum_ms_ = 0.0;
   }
 
+  const auto sequence_finite = [this]() {
+      for (unsigned int t = 0; t < settings_.time_steps; ++t) {
+        if (utils::isBadFloat(control_sequence_.vx(t)) ||
+          utils::isBadFloat(control_sequence_.wz(t)) ||
+          (isHolonomic() && utils::isBadFloat(control_sequence_.vy(t))))
+        {
+          return false;
+        }
+      }
+      return true;
+    };
+  const bool finite_before_smoothing = sequence_finite();
   utils::savitskyGolayFilter(control_sequence_, control_history_, settings_);
+
+  // 2026-09-16 fail-safe: a non-finite control sequence (or smoother history)
+  // publishes NaN -- velocity_smoother rejects it, the robot freezes -- and
+  // re-seeds every later cycle with NaN (bag tgmppi_dyn_20260916_002534).
+  // Restart from rest instead.
+  {
+    static unsigned int nan_logs = 0u;
+    bool finite = sequence_finite();
+    for (const auto & h : control_history_) {
+      finite = finite && !utils::isBadFloat(h.vx) && !utils::isBadFloat(h.vy) &&
+        !utils::isBadFloat(h.wz);
+    }
+    if (!finite) {
+      if (nan_logs++ < 20u) {
+        RCLCPP_ERROR(
+          logger_,
+          "[TGMPPI diag] non-finite control sequence (%s smoothing) -- resetting to rest",
+          finite_before_smoothing ? "introduced by" : "already before");
+      }
+      control_sequence_.reset(settings_.time_steps);
+      for (auto & h : control_history_) {
+        h = {0.0, 0.0, 0.0};
+      }
+      mode_nominals_.clear();
+    }
+  }
   auto control = getControlFromSequenceAsTwist(plan.header.stamp);
 
   if (settings_.shift_control_sequence) {
@@ -342,10 +386,78 @@ geometry_msgs::msg::TwistStamped Optimizer::evalControl(
 
 void Optimizer::optimize()
 {
+  const auto implausible = [](float c) {
+      return utils::isBadFloat(c) || c < -1.0e3f || c > 1.0e12f;
+    };
   for (size_t i = 0; i < settings_.iteration_count; ++i) {
     generateNoisedTrajectories();
+
+    // 2026-09-16 diagnostics (first offenders, capped): sampled controls after
+    // the TG-MPPI bias and the rollouts, before any critic scores them.
+    {
+      static unsigned int sample_logs = 0u;
+      const auto & s = settings_;
+      const float px = static_cast<float>(state_.pose.pose.position.x);
+      const float py = static_cast<float>(state_.pose.pose.position.y);
+      for (unsigned int r = 0; r < s.batch_size && sample_logs < 10u; ++r) {
+        for (unsigned int t = 0; t < s.time_steps; ++t) {
+          const float v = state_.cvx(r, t);
+          const float w = state_.cwz(r, t);
+          const float x = generated_trajectories_.x(r, t);
+          const float y = generated_trajectories_.y(r, t);
+          const bool bad_control = utils::isBadFloat(v) || utils::isBadFloat(w) ||
+            std::fabs(v) > 10.0f || std::fabs(w) > 50.0f;
+          const bool bad_rollout = utils::isBadFloat(x) || utils::isBadFloat(y) ||
+            std::fabs(x - px) > 50.0f || std::fabs(y - py) > 50.0f;
+          if (!bad_control && !bad_rollout) {continue;}
+          int slot = -1;
+          for (std::size_t m = 0; m < ancillary_mode_samples_.size(); ++m) {
+            if (ancillary_mode_valid_[m] && r >= ancillary_mode_row_start_[m] &&
+              r < ancillary_mode_row_start_[m] + ancillary_mode_samples_[m])
+            {
+              slot = static_cast<int>(m);
+              break;
+            }
+          }
+          ++sample_logs;
+          RCLCPP_WARN(
+            logger_,
+            "[TGMPPI diag] %s corrupt: row %u t %u cvx %g cwz %g x %g y %g "
+            "(u_vx %g u_wz %g, pod slot %d, assist %d)",
+            bad_control ? "sampled control" : "rollout", r, t, v, w, x, y,
+            control_sequence_.vx(t), control_sequence_.wz(t), slot,
+            tgmppi_assist_active_ ? 1 : 0);
+          break;
+        }
+      }
+    }
+
     critic_manager_.evalTrajectoriesScores(critics_data_);
+
+    static unsigned int prior_logs = 0u;
+    std::vector<uint8_t> corrupt_after_critics;
+    if (prior_logs < 10u) {
+      corrupt_after_critics.resize(settings_.batch_size);
+      for (unsigned int r = 0; r < settings_.batch_size; ++r) {
+        corrupt_after_critics[r] = implausible(costs_(r)) ? 1u : 0u;
+      }
+    }
     applyTgMppiModePriors();
+    for (unsigned int r = 0; r < corrupt_after_critics.size(); ++r) {
+      if (corrupt_after_critics[r] || !implausible(costs_(r))) {continue;}
+      std::string priors;
+      for (std::size_t m = 0; m < ancillary_mode_rejoin_prior_.size(); ++m) {
+        priors += std::to_string(m) + ":" + std::to_string(ancillary_mode_rejoin_prior_[m]) +
+          "[" + std::to_string(ancillary_mode_row_start_[m]) + "+" +
+          std::to_string(ancillary_mode_samples_[m]) + "] ";
+      }
+      ++prior_logs;
+      RCLCPP_WARN(
+        logger_, "[TGMPPI diag] rejoin prior made row %u corrupt: cost %g; priors %s",
+        r, costs_(r), priors.c_str());
+      break;
+    }
+
     updateControlSequence();
   }
 }
@@ -387,6 +499,9 @@ void Optimizer::prepare(
   critics_data_.flow_field =
     (settings_.tgmppi_shadow_mode || !settings_.flow_critic_enabled) ?
     nullptr : &flow_field_;
+  snapshotTrackedObstacles();
+  critics_data_.tracked_obstacles =
+    tracked_obstacles_snapshot_.empty() ? nullptr : &tracked_obstacles_snapshot_;
 }
 
 void Optimizer::shiftControlSequence()
@@ -458,6 +573,18 @@ void Optimizer::spacetimeObstacleCallback(std::size_t index, const nav_msgs::msg
   spacetime_obstacles_[index].vx = static_cast<float>(msg.twist.twist.linear.x);
   spacetime_obstacles_[index].vy = static_cast<float>(msg.twist.twist.linear.y);
   spacetime_obstacles_[index].radius = settings_.tgmppi_spacetime_obstacle_radius;
+  spacetime_obstacle_received_[index] = true;
+}
+
+void Optimizer::snapshotTrackedObstacles()
+{
+  tracked_obstacles_snapshot_.clear();
+  std::lock_guard<std::mutex> lock(spacetime_obstacles_mutex_);
+  for (std::size_t i = 0; i < spacetime_obstacles_.size(); ++i) {
+    if (i < spacetime_obstacle_received_.size() && spacetime_obstacle_received_[i]) {
+      tracked_obstacles_snapshot_.push_back(spacetime_obstacles_[i]);
+    }
+  }
 }
 
 void Optimizer::trySpacetimeAlternatives(
@@ -471,13 +598,31 @@ void Optimizer::trySpacetimeAlternatives(
     return;
   }
 
-  std::vector<SpaceTimeObstacle> obstacles;
-  {
-    std::lock_guard<std::mutex> lock(spacetime_obstacles_mutex_);
-    obstacles = spacetime_obstacles_;
-  }
+  // Received obstacles only, snapshotted in prepare() (same set the critic sees).
+  const std::vector<SpaceTimeObstacle> & obstacles = tracked_obstacles_snapshot_;
   if (obstacles.empty()) {
     return;
+  }
+
+  // 2026-09-16 diagnostics: bags _20260915_234156 and _20260916_001024 showed
+  // zero space-time mode SELECTIONS, but nothing measured whether a crossing
+  // was ever detected in the first place. Count each stage separately so the
+  // blocking one is identifiable instead of inferred.
+  static unsigned int st_cycles = 0u, st_gate_pass = 0u, st_feasible = 0u,
+    st_appended = 0u, st_not_distinct = 0u, st_unfollowable = 0u;
+  static float st_best_margin = std::numeric_limits<float>::max();
+  static double st_search_ms = 0.0;
+  if (++st_cycles >= 100u) {
+    RCLCPP_INFO(
+      logger_,
+      "[TGMPPI spacetime] last %u cycles: crossing detected %u (best margin %.2f m vs "
+      "relevance %.2f m), searches feasible %u, modes appended %u, non-distinct %u, "
+      "unfollowable %u, search %.1f ms total",
+      st_cycles, st_gate_pass, st_best_margin, s.tgmppi_spacetime_relevance,
+      st_feasible, st_appended, st_not_distinct, st_unfollowable, st_search_ms);
+    st_cycles = 0u; st_gate_pass = 0u; st_feasible = 0u; st_appended = 0u;
+    st_not_distinct = 0u; st_search_ms = 0.0; st_unfollowable = 0u;
+    st_best_margin = std::numeric_limits<float>::max();
   }
 
   const float search_speed = s.tgmppi_spacetime_res / s.tgmppi_spacetime_dt_layer;
@@ -528,7 +673,9 @@ void Optimizer::trySpacetimeAlternatives(
         if (margin < worst_margin) {worst_margin = margin; worst_obstacle = oi;}
       }
     }
+    if (worst_margin < st_best_margin) {st_best_margin = worst_margin;}
     if (worst_margin > s.tgmppi_spacetime_relevance) {continue;}   // no genuine crossing here
+    ++st_gate_pass;
 
     const SpaceTimeObstacle crossing_obstacle = obstacles[worst_obstacle];
     const auto static_free = [this](float x, float y) {
@@ -541,11 +688,15 @@ void Optimizer::trySpacetimeAlternatives(
 
     SpaceTimeRoute wait_route, detour_route;
     bool distinct = false;
+    const auto search_t0 = std::chrono::steady_clock::now();
     SpaceTimeSearch::twoRouteSearch(
       static_free, {crossing_obstacle}, rx, ry, local_goal.first, local_goal.second,
       robot_r, s.tgmppi_spacetime_horizon, s.tgmppi_spacetime_dt_layer,
       s.tgmppi_spacetime_res, s.tgmppi_spacetime_window, s.tgmppi_spacetime_res * 1.5f,
       wait_route, detour_route, distinct);
+    st_search_ms += std::chrono::duration<double, std::milli>(
+      std::chrono::steady_clock::now() - search_t0).count();
+    if (wait_route.feasible || detour_route.feasible) {++st_feasible;}
 
     // Resample a raw (x, y)-per-dt_layer path onto this controller's own
     // (time_steps, model_dt) grid via linear interpolation, holding the
@@ -557,7 +708,7 @@ void Optimizer::trySpacetimeAlternatives(
     // final-porting-day timeline, not an oversight.
     const auto resample = [&](const SpaceTimeRoute & route,
       std::vector<float> & v, std::vector<float> & w,
-      std::vector<float> & x, std::vector<float> & y) {
+      std::vector<float> & x, std::vector<float> & y) -> bool {
         v.assign(s.time_steps, 0.0f);
         w.assign(s.time_steps, 0.0f);
         x.reserve(s.time_steps);
@@ -578,23 +729,65 @@ void Optimizer::trySpacetimeAlternatives(
           y.push_back(py);
           if (have_prev) {
             const float dx = px - prev_x, dy = py - prev_y;
-            const float dist = std::sqrt(dx * dx + dy * dy);
-            v[t] = dist / s.model_dt;
-            const float yaw = (dist > 1e-6f) ? std::atan2(dy, dx) : prev_yaw;
-            w[t] = static_cast<float>(angles::shortest_angular_distance(prev_yaw, yaw)) /
-              s.model_dt;
-            prev_yaw = yaw;
+            v[t] = std::clamp(
+              std::sqrt(dx * dx + dy * dy) / s.model_dt, 0.0f, s.constraints.vx_max);
           }
           prev_x = px;
           prev_y = py;
           have_prev = true;
         }
+        (void)prev_yaw;
+
+        // Headings come from a LOOKAHEAD along the resampled path, not from
+        // consecutive points: two consecutive points of an 8-connected grid
+        // path (cell size = spacetime_res) can differ in direction by 180 deg,
+        // and that divided by model_dt gave |wz| ~ pi/model_dt = 63 rad/s --
+        // 33x wz_max, an unfollowable reference that still entered the sampling
+        // (observed 2026-09-16, log 36452..., pod slot 3). A route needing more
+        // than wz_max for a large share of the horizon is not a proposal this
+        // robot can act on, so it is rejected rather than clamped into nonsense.
+        const std::size_t lookahead = std::max<std::size_t>(
+          1u, static_cast<std::size_t>(std::lround(
+            0.3 / std::max(0.01f, s.constraints.vx_max * s.model_dt))));
+        float heading = static_cast<float>(tf2::getYaw(state_.pose.pose.orientation));
+        unsigned int over_limit = 0u;
+        for (unsigned int t = 0; t < s.time_steps; ++t) {
+          const std::size_t j = std::min<std::size_t>(t + lookahead, s.time_steps - 1);
+          const float dx = x[j] - x[t], dy = y[j] - y[t];
+          const float yaw = (std::sqrt(dx * dx + dy * dy) > 1e-3f) ?
+            std::atan2(dy, dx) : heading;
+          const float raw_w =
+            static_cast<float>(angles::shortest_angular_distance(heading, yaw)) / s.model_dt;
+          if (std::fabs(raw_w) > s.constraints.wz) {++over_limit;}
+          w[t] = std::clamp(raw_w, -s.constraints.wz, s.constraints.wz);
+          heading = yaw;
+        }
+        return over_limit * 4u <= s.time_steps;   // reject if >25% of steps need more than wz_max
       };
 
-    for (const auto & route : {std::cref(wait_route), std::cref(detour_route)}) {
+    // twoRouteSearch already reports whether the two routes pass the crossing
+    // obstacle on opposite sides (the whole point: wait-behind vs go-before).
+    // That flag used to be ignored, so two identical routes could be appended
+    // and burn both extra mode slots on the same behaviour. Keep both only
+    // when they are genuinely distinct, otherwise keep the cheaper one.
+    std::vector<std::reference_wrapper<const SpaceTimeRoute>> routes;
+    if (distinct) {
+      routes = {std::cref(wait_route), std::cref(detour_route)};
+    } else {
+      ++st_not_distinct;
+      const bool prefer_wait = wait_route.feasible &&
+        (!detour_route.feasible || wait_route.cost <= detour_route.cost);
+      const SpaceTimeRoute & best = prefer_wait ? wait_route : detour_route;
+      if (best.feasible) {routes.push_back(std::cref(best));}
+    }
+    for (const auto & route : routes) {
       if (!route.get().feasible) {continue;}
       std::vector<float> v, w, x, y;
-      resample(route.get(), v, w, x, y);
+      if (!resample(route.get(), v, w, x, y)) {
+        ++st_unfollowable;
+        continue;
+      }
+      ++st_appended;
       mode_v.push_back(std::move(v));
       mode_w.push_back(std::move(w));
       mode_x.push_back(std::move(x));
@@ -892,18 +1085,45 @@ void Optimizer::applyFlowBias()
           s.tgmppi_bias_gain * err, -s.constraints.wz, s.constraints.wz);
         const float nominal_v = std::fabs(control_sequence_.vx(t));
         const float cruise = std::clamp(
-          std::max(0.18f, nominal_v), 0.0f, s.constraints.vx_max);
+          std::max(s.tgmppi_pod_cruise_speed, nominal_v), 0.0f, s.constraints.vx_max);
         const float turn_scale = std::clamp(std::cos(err), min_speed_ratio, 1.0f);
         const float endpoint_dist = std::hypot(
           pods[m].back().first - x, pods[m].back().second - y);
         const float stop_scale = std::clamp(endpoint_dist / 0.25f, 0.25f, 1.0f);
         float v = cruise * turn_scale * stop_scale;
+        const float v_ref = v, w_ref = w;
+        float warm_v = 0.0f, warm_w = 0.0f;
         if (warm_prev != nullptr) {
           // stabilizer: sandbox mode_warm_start against this mode's own
           // previous local mean, shifted one step (mode_nominals).
           const std::size_t tp = std::min<std::size_t>(t + 1, s.time_steps - 1);
-          v = warm * warm_prev->first[tp] + (1.0f - warm) * v;
-          w = warm * warm_prev->second[tp] + (1.0f - warm) * w;
+          warm_v = warm_prev->first[tp];
+          warm_w = warm_prev->second[tp];
+          v = warm * warm_v + (1.0f - warm) * v;
+          w = warm * warm_w + (1.0f - warm) * w;
+        }
+        // 2026-09-17: the warm-start blend above was never clamped, so whatever a
+        // mode's stored mean held went straight into the reference -- log 37188
+        // shows a whole pod block sampled at cwz ~ -9.9e15 rad/s (wz_max 1.9).
+        // A reference outside the robot's own limits can never be followed, so
+        // clamp it here, and log the inputs once so the source can be traced.
+        const bool v_bad = utils::isBadFloat(v) ||
+          v > s.constraints.vx_max * 1.01f + 1e-3f || v < s.constraints.vx_min * 1.01f - 1e-3f;
+        const bool w_bad = utils::isBadFloat(w) ||
+          std::fabs(w) > s.constraints.wz * 1.01f + 1e-3f;
+        if (v_bad || w_bad) {
+          static unsigned int ref_logs = 0u;
+          if (ref_logs++ < 20u) {
+            RCLCPP_WARN(
+              logger_,
+              "[TGMPPI diag] pod reference out of limits: slot %zu key %d t %u v %g w %g "
+              "(pre-warm v %g w %g, warm v %g w %g, warm-start %s)",
+              m, m < ancillary_mode_key_.size() ? ancillary_mode_key_[m] : -999, t, v, w,
+              v_ref, w_ref, warm_v, warm_w, warm_prev != nullptr ? "on" : "off");
+          }
+          v = utils::isBadFloat(v) ? 0.0f :
+            std::clamp(v, s.constraints.vx_min, s.constraints.vx_max);
+          w = utils::isBadFloat(w) ? 0.0f : std::clamp(w, -s.constraints.wz, s.constraints.wz);
         }
         mode_v[m][t] = v;
         mode_w[m][t] = w;
@@ -1533,6 +1753,20 @@ xt::xtensor<float, 2> Optimizer::getOptimizedTrajectory()
 void Optimizer::updateControlSequence()
 {
   auto & s = settings_;
+  // 2026-09-16 diagnostics: rows already corrupt before the control-cost term
+  // (critics / priors) vs rows the term itself makes corrupt.
+  static unsigned int control_cost_logs = 0u;
+  const auto implausible = [](float c) {
+      return utils::isBadFloat(c) || c < -1.0e3f || c > 1.0e12f;
+    };
+  std::vector<uint8_t> corrupt_before;
+  if (control_cost_logs < 10u) {
+    corrupt_before.resize(s.batch_size);
+    for (unsigned int r = 0; r < s.batch_size; ++r) {
+      corrupt_before[r] = implausible(costs_(r)) ? 1u : 0u;
+    }
+  }
+
   auto bounded_noises_vx = state_.cvx - control_sequence_.vx;
   auto bounded_noises_wz = state_.cwz - control_sequence_.wz;
   xt::noalias(costs_) +=
@@ -1548,6 +1782,92 @@ void Optimizer::updateControlSequence()
       s.gamma / powf(s.sampling_std.vy, 2) * xt::sum(
       xt::view(control_sequence_.vy, xt::newaxis(), xt::all()) * bounded_noises_vy,
       1, immediate);
+  }
+
+  if (!corrupt_before.empty()) {
+    // NaN-propagating running max (std::max would silently skip a NaN).
+    const auto track = [](float & m, float x) {
+        x = std::fabs(x);
+        if (!(x <= m)) {m = x;}
+      };
+    for (unsigned int r = 0; r < s.batch_size; ++r) {
+      if (corrupt_before[r] || !implausible(costs_(r))) {continue;}
+      float max_cvx = 0.0f, max_cwz = 0.0f, max_u = 0.0f, max_w = 0.0f;
+      for (unsigned int t = 0; t < s.time_steps; ++t) {
+        track(max_cvx, state_.cvx(r, t));
+        track(max_cwz, state_.cwz(r, t));
+        track(max_u, control_sequence_.vx(t));
+        track(max_w, control_sequence_.wz(t));
+      }
+      ++control_cost_logs;
+      RCLCPP_WARN(
+        logger_,
+        "[TGMPPI diag] control-cost term made row %u corrupt: cost %g, max|cvx| %g "
+        "max|cwz| %g, max|u_vx| %g max|u_wz| %g",
+        r, costs_(r), max_cvx, max_cwz, max_u, max_w);
+      break;
+    }
+  }
+
+  // 2026-09-16 quarantine: a row whose cost is non-finite / implausible, or
+  // whose sampled controls are non-finite, must never reach a softmax -- one
+  // such row turns the weighted mean into NaN, which then feeds every later
+  // cycle (bag tgmppi_dyn_20260916_002534: NaN commands from the second goal
+  // on, robot frozen). Such rows get a cost just above the worst sane row and
+  // the current nominal controls: zero weight, and harmless if ever averaged.
+  {
+    static unsigned int quarantine_logs = 0u;
+    static unsigned int quarantine_cycles = 0u;
+    static std::size_t quarantined_rows = 0u;
+    std::vector<unsigned int> bad_rows;
+    float worst_sane = 0.0f;
+    for (unsigned int r = 0; r < s.batch_size; ++r) {
+      // Finite-but-impossible controls count too: a space-time route once fed
+      // |wz| ~ 63 rad/s (wz_max 1.9) into the batch. The bounds are generous
+      // multiples of the sampling spread so ordinary MPPI exploration is kept.
+      const float cvx_limit = s.constraints.vx_max + 5.0f * s.sampling_std.vx;
+      const float cwz_limit = s.constraints.wz + 5.0f * s.sampling_std.wz;
+      bool bad = implausible(costs_(r));
+      for (unsigned int t = 0; t < s.time_steps && !bad; ++t) {
+        bad = utils::isBadFloat(state_.cvx(r, t)) || utils::isBadFloat(state_.cwz(r, t)) ||
+          std::fabs(state_.cvx(r, t)) > cvx_limit || std::fabs(state_.cwz(r, t)) > cwz_limit;
+      }
+      if (bad) {
+        bad_rows.push_back(r);
+      } else {
+        worst_sane = std::max(worst_sane, costs_(r));
+      }
+    }
+    if (!bad_rows.empty()) {
+      if (quarantine_logs++ < 20u) {
+        RCLCPP_WARN(
+          logger_, "[TGMPPI diag] quarantining %zu row(s); first row %u cost %g",
+          bad_rows.size(), bad_rows.front(), costs_(bad_rows.front()));
+      }
+      for (const unsigned int r : bad_rows) {
+        costs_(r) = worst_sane + 1.0e4f;
+        for (unsigned int t = 0; t < s.time_steps; ++t) {
+          const float u = control_sequence_.vx(t);
+          const float w = control_sequence_.wz(t);
+          state_.cvx(r, t) = utils::isBadFloat(u) ? 0.0f : u;
+          state_.cwz(r, t) = utils::isBadFloat(w) ? 0.0f : w;
+          if (isHolonomic()) {
+            const float vy = control_sequence_.vy(t);
+            state_.cvy(r, t) = utils::isBadFloat(vy) ? 0.0f : vy;
+          }
+        }
+      }
+      quarantined_rows += bad_rows.size();
+    }
+    if (++quarantine_cycles >= 100u) {
+      if (quarantined_rows > 0u) {
+        RCLCPP_WARN(
+          logger_, "[TGMPPI diag] quarantined %zu row(s) in the last 100 cycles",
+          quarantined_rows);
+      }
+      quarantine_cycles = 0u;
+      quarantined_rows = 0u;
+    }
   }
 
   if (s.tgmppi_grouped_update && !s.tgmppi_shadow_mode && s.tgmppi_bias_enabled) {
@@ -1577,6 +1897,29 @@ void Optimizer::updateControlSequence()
     }
     if (covered_end < s.batch_size) {
       groups.push_back({covered_end, s.batch_size - covered_end, kFallbackModeKey});
+    }
+
+    // 2026-09-15 guard: never index outside the batch (corrupt costs are
+    // handled row-by-row by the quarantine above).
+    {
+      static unsigned int range_logs = 0u;
+      std::vector<Group> sane;
+      sane.reserve(groups.size());
+      for (const auto & grp : groups) {
+        if (grp.count == 0u || grp.start + grp.count > s.batch_size) {
+          if (range_logs++ < 20u) {
+            RCLCPP_WARN(
+              logger_, "[TGMPPI] dropping out-of-range group key %d rows [%u, %u) batch %u",
+              grp.key, grp.start, grp.start + grp.count, s.batch_size);
+          }
+          continue;
+        }
+        sane.push_back(grp);
+      }
+      if (sane.empty()) {
+        sane.push_back({0u, s.batch_size, kFallbackModeKey});
+      }
+      groups.swap(sane);
     }
 
     // Per-group local softmax + free energy (sandbox's mode_statistics()):
@@ -1677,10 +2020,22 @@ void Optimizer::updateControlSequence()
         const unsigned int g0 = groups[g].start;
         const unsigned int g1 = groups[g].start + groups[g].count;
         auto && sm = xt::eval(xt::view(group_softmax[g], xt::all(), xt::newaxis()));
-        auto && mean_vx = xt::eval(
-          xt::sum(xt::view(state_.cvx, xt::range(g0, g1), xt::all()) * sm, 0, immediate));
-        auto && mean_wz = xt::eval(
-          xt::sum(xt::view(state_.cwz, xt::range(g0, g1), xt::all()) * sm, 0, immediate));
+        // 2026-09-17 ROOT CAUSE of the corrupt pod references (and, downstream,
+        // the -1e19..-1e25 costs and the NaN freeze): these two were
+        // `auto && x = xt::eval(xt::sum(..., immediate))`. With `immediate` the
+        // sum is ALREADY an evaluated temporary container, and xt::eval() on a
+        // container is the identity -- it returns a REFERENCE to that temporary
+        // rather than a new object. Lifetime extension only applies when a
+        // temporary binds directly to a reference, not through a function
+        // returning one, so both references dangled at the end of their
+        // statements. The second sum then reused the freed block, which is why
+        // the stored means came back with vx == wz exactly (log 43409:
+        // "warm v -1.72842 w -1.72842") or as garbage once the memory was reused
+        // (-1.04e34). Owning containers make the lifetime explicit.
+        const xt::xtensor<float, 1> mean_vx =
+          xt::sum(xt::view(state_.cvx, xt::range(g0, g1), xt::all()) * sm, 0, immediate);
+        const xt::xtensor<float, 1> mean_wz =
+          xt::sum(xt::view(state_.cwz, xt::range(g0, g1), xt::all()) * sm, 0, immediate);
         fresh[groups[g].key] = {
           std::vector<float>(mean_vx.begin(), mean_vx.end()),
           std::vector<float>(mean_wz.begin(), mean_wz.end())};

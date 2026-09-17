@@ -86,7 +86,8 @@ std::pair<float, float> SpaceTimeSearch::predict(
 SpaceTimeRoute SpaceTimeSearch::search(
   const StaticFreeFn & static_free, const std::vector<SpaceTimeObstacle> & obstacles,
   float start_x, float start_y, float goal_x, float goal_y, float robot_r,
-  float horizon, float dt_layer, float res, float window, float goal_tol, float wait_cost)
+  float horizon, float dt_layer, float res, float window, float goal_tol, float wait_cost,
+  const SpaceTimeRoute * avoid_same_side_as, float side_relevance)
 {
   SpaceTimeRoute out;
 
@@ -121,9 +122,38 @@ SpaceTimeRoute SpaceTimeSearch::search(
       return true;
     };
 
+  // Homotopy constraint (2026-09-16): with a reference route given, a cell is
+  // usable only if it lies on the OPPOSITE side of every nearby obstacle from
+  // where the reference is at the SAME time layer. Differing wait costs alone
+  // produced the same passing class in every cycle (log 36452: non-distinct
+  // 91/91); this is what makes the second route a different homotopy class.
+  // k == 0 is exempt: both routes start at the robot, so the test would
+  // trivially report "same side" and block the search at its own start cell.
+  const auto sideOk = [&](int i, int j, int k) {
+      if (avoid_same_side_as == nullptr || avoid_same_side_as->path.empty() || k == 0) {
+        return true;
+      }
+      const auto [px, py] = cellXY(i, j);
+      const float t = static_cast<float>(k) * dt_layer;
+      const auto & ref_path = avoid_same_side_as->path;
+      const auto ref = ref_path[std::min(static_cast<std::size_t>(k), ref_path.size() - 1)];
+      for (const auto & obs : obstacles) {
+        const auto [ox, oy] = predict(obs, t, horizon);
+        const float rx = ref.first - ox, ry = ref.second - oy;
+        const float dx = px - ox, dy = py - oy;
+        if (std::sqrt(rx * rx + ry * ry) > side_relevance ||
+          std::sqrt(dx * dx + dy * dy) > side_relevance)
+        {
+          continue;   // constrain only where both routes are close to the obstacle
+        }
+        if (rx * dx + ry * dy > 0.0f) {return false;}   // same side as the reference
+      }
+      return true;
+    };
+
   const auto free = [&](int i, int j, int k) {
       const auto [px, py] = cellXY(i, j);
-      return static_free(px, py) && dynamicFree(i, j, k);
+      return static_free(px, py) && dynamicFree(i, j, k) && sideOk(i, j, k);
     };
 
   const State start_state{start_i, start_j, 0};
@@ -247,9 +277,12 @@ void SpaceTimeSearch::twoRouteSearch(
   wait_route = search(
     static_free, obstacles, start_x, start_y, goal_x, goal_y, robot_r,
     horizon, dt_layer, res, window, goal_tol, wait_cost_cheap);
+  // Second route must pass the obstacle on the other side from the first --
+  // that constraint, not the wait cost, is what makes it a distinct class.
   detour_route = search(
     static_free, obstacles, start_x, start_y, goal_x, goal_y, robot_r,
-    horizon, dt_layer, res, window, goal_tol, wait_cost_expensive);
+    horizon, dt_layer, res, window, goal_tol, wait_cost_expensive,
+    wait_route.feasible ? &wait_route : nullptr, 0.8f);
 
   distinct = wait_route.feasible && detour_route.feasible &&
     routesAreDistinct(wait_route, detour_route, obstacles, dt_layer, horizon, 0.8f);

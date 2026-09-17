@@ -100,13 +100,18 @@ public:
   static SpaceTimeRoute search(
     const StaticFreeFn & static_free, const std::vector<SpaceTimeObstacle> & obstacles,
     float start_x, float start_y, float goal_x, float goal_y, float robot_r,
-    float horizon, float dt_layer, float res, float window, float goal_tol, float wait_cost);
+    float horizon, float dt_layer, float res, float window, float goal_tol, float wait_cost,
+    const SpaceTimeRoute * avoid_same_side_as = nullptr, float side_relevance = 0.8f);
 
   /**
    * @brief Port of two_route_search(): runs search() twice with a cheap
    * vs. expensive wait_cost so waiting-in-place and detouring-around each
-   * become the true minimum-cost strategy in turn, giving two genuinely
-   * distinct candidate routes rather than two labels on the same path.
+   * become the true minimum-cost strategy in turn. Differing wait costs alone
+   * was NOT enough -- both searches converged on the same passing class every
+   * time (2026-09-16, log 36452: non-distinct 91/91), so the second search is
+   * now additionally CONSTRAINED to the opposite side of the obstacle from the
+   * first (avoid_same_side_as), which is what makes the two routes genuinely
+   * distinct homotopy classes rather than two labels on the same path.
    * distinct is computed via routes_are_distinct()'s synchronized-time
    * side test (the space-time analogue of homotopy.py's mode_side_planes).
    */

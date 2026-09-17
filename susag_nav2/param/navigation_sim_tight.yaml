@@ -386,8 +386,8 @@ local_costmap:
   local_costmap:
     ros__parameters:
       use_sim_time: false
-      update_frequency: 5.0
-      publish_frequency: 2.0
+      update_frequency: 10.0   # 2026-09-15: was 5.0; fresher moving obstacles for the controller (both tight yamls)
+      publish_frequency: 10.0  # 2026-09-15: was 2.0; RViz showed moving obstacles lagging/jumping ~15 cm per frame
       global_frame: odom
       robot_base_frame: base_link
       footprint_padding: 0.02  # matched to navigation_tgmppi_tight.yaml (2026-09-14);

@@ -134,6 +134,13 @@ struct OptimizerSettings
   //    smaller than this (rad) are treated as noise and produce no yaw
   //    command, so a few degrees of grid jitter can't flip w's sign.
   float tgmppi_bias_deadband{0.0f};
+  // Floor of a pseudopod reference's cruise speed (m/s, clamped to vx_max):
+  // cruise = max(this, |current nominal vx|). 0.18 = the original hard-coded
+  // floor. With the floor below vx_max, a mode slowed once (e.g. by an
+  // obstacle) keeps referencing its own low speed -- and tgmppi_mode_warm_start
+  // blends it with its own slow previous mean -- so it creeps (bag
+  // tgmppi_dyn_20260916_001024: mode 0 mean 0.15-0.22 m/s vs fallback 0.32-0.36).
+  float tgmppi_pod_cruise_speed{0.18f};
 
   // amoeba_sandbox spacetime.py Phase 1 port (2026-09-13): opt-in extra
   // sampling modes ("wait"/"detour") built from a time-expanded (x,y,t)

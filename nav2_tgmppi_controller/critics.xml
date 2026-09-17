@@ -5,6 +5,10 @@
       <description>tgmppi critic for obstacle avoidance</description>
     </class>
 
+    <class type="tgmppi::critics::DynamicObstacleCritic" base_class_type="tgmppi::critics::CriticFunction">
+      <description>tgmppi critic: time-indexed collision cost against predicted moving obstacles</description>
+    </class>
+
     <class type="tgmppi::critics::CostCritic" base_class_type="tgmppi::critics::CriticFunction">
       <description>tgmppi critic for obstacle avoidance using costmap score</description>
     </class>

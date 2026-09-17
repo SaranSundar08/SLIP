@@ -198,6 +198,7 @@ controller_server:
       tgmppi_mode_warm_start: 0.7        # mppi.py mode_warm_start
       tgmppi_assist_ramp_rate: 0.2       # AmoebaHybrid gate_rate
       tgmppi_bias_deadband: 0.08         # AmoebaHybrid bias_deadband (rad)
+      tgmppi_pod_cruise_speed: 0.35      # pod reference cruise floor (was hard-coded 0.18 -> mode 0 crept at 0.15-0.22 m/s)
       # amoeba_sandbox spacetime.py Phase 1 port (2026-09-13). UNLIKE
       # tgmppi_grouped_update above, this is read ONCE at controller
       # configure to set up the obstacle subscriptions -- not a live
@@ -211,6 +212,11 @@ controller_server:
         - "/moving_obstacle_3/ground_truth/odom"
         - "/moving_obstacle_4/ground_truth/odom"
         - "/moving_obstacle_5/ground_truth/odom"
+        - "/moving_obstacle_6/ground_truth/odom"
+        - "/moving_obstacle_7/ground_truth/odom"
+        - "/moving_obstacle_8/ground_truth/odom"
+        - "/moving_obstacle_9/ground_truth/odom"
+        - "/moving_obstacle_10/ground_truth/odom"
       tgmppi_spacetime_obstacle_radius: 0.25   # shared across all five obstacles --
                                                 # world_open_dynamic.world alternates
                                                 # 0.25/0.20m, so 0.25 is a safe margin,
@@ -224,11 +230,18 @@ controller_server:
                                                 # difficulty of picking well, not the
                                                 # risk of overflowing ancillary-mode
                                                 # storage (kMaxAncillaryModes=5).
-      tgmppi_spacetime_horizon: 3.0
-      tgmppi_spacetime_dt_layer: 0.25
+      tgmppi_spacetime_horizon: 6.0
+      tgmppi_spacetime_dt_layer: 0.30
       tgmppi_spacetime_res: 0.10
       tgmppi_spacetime_window: 2.5
-      tgmppi_spacetime_relevance: 0.0
+      tgmppi_spacetime_relevance: 0.35  # was 0.0 = only an actual predicted OVERLAP of the
+                                        # pseudopod centreline with an obstacle disc counted
+                                        # as a crossing, which never fired in any bag. 0.35 m
+                                        # = "passes within 35 cm of a predicted obstacle".
+                                        # Detection reach is limited to search_speed*horizon
+                                        # = (res/dt_layer)*horizon = 0.333*6.0 = 2.0 m of
+                                        # pseudopod arc; raise horizon (not res/dt_layer,
+                                        # which must stay ~vx_max) if that is still too short.
       tgmppi_debug: true             # geodesic body/membrane markers (light enough for normal use)
       tgmppi_ancillary_debug: true   # three lightweight /tgmppi/ancillary_path_* topics
 
@@ -306,7 +319,7 @@ controller_server:
         min_turning_r: 0.2
       # FlowFieldCritic is loaded but receives no field while
       # flow_critic_enabled=false. This phase isolates ancillary sampling.
-      critics: ["ConstraintCritic", "CostCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic", "FlowFieldCritic"]
+      critics: ["ConstraintCritic", "CostCritic", "DynamicObstacleCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic", "FlowFieldCritic"]
       # ray-mode ablation critics list (original):
       # critics: ["ConstraintCritic", "CostCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic"]
       FlowFieldCritic:
@@ -344,6 +357,22 @@ controller_server:
       #   near_goal_distance: 0.5
       #   inflation_radius: 0.55 # (only in Humble)
       #   cost_scaling_factor: 10.0 # (only in Humble)
+      # 2026-09-15: time-indexed collision cost vs PREDICTED moving obstacles (T-MPC
+      # Eq. 2d inside MPPI). Uses the tgmppi_spacetime_obstacle_topics subscriptions;
+      # inert when none have published (static BARN). Same cost scale as CostCritic.
+      DynamicObstacleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 3.81
+        critical_cost: 300.0
+        collision_cost: 1000000.0
+        penetration_cost: 10000.0
+        soft_distance: 0.15      # was 0.5: band (1.15 m reach) wider than half the 2 m lane gap -> dodging dances
+        disc_offset: 0.21
+        disc_radius: 0.40
+        max_prediction_time: 10.0
+        trajectory_point_step: 3 # was 1, then 2: still 41.6 ms max near obstacles (20 Hz budget 50 ms); 0.15 s x ~0.7 m/s rel = 0.1 m << 0.65 contact
+        cull_distance: 3.3       # (0.35 + 0.34 m/s) * 2.8 s horizon + 0.65 contact + 0.21 disc offset
       CostCritic:
         enabled: true
         cost_power: 1
@@ -484,8 +513,8 @@ local_costmap:
   local_costmap:
     ros__parameters:
       use_sim_time: false
-      update_frequency: 5.0
-      publish_frequency: 2.0
+      update_frequency: 10.0   # 2026-09-15: was 5.0; fresher moving obstacles for the controller (both tight yamls)
+      publish_frequency: 10.0  # 2026-09-15: was 2.0; RViz showed moving obstacles lagging/jumping ~15 cm per frame
       global_frame: odom
       robot_base_frame: base_link
       footprint_padding: 0.02

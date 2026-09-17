@@ -14,6 +14,11 @@
 
 #include "nav2_tgmppi_controller/critic_manager.hpp"
 
+#include <cstdint>
+#include <vector>
+
+#include "nav2_tgmppi_controller/tools/utils.hpp"
+
 namespace tgmppi
 {
 
@@ -67,11 +72,42 @@ std::string CriticManager::getFullName(const std::string & name)
 void CriticManager::evalTrajectoriesScores(
   CriticData & data) const
 {
+  // 2026-09-16 diagnostics: bags tgmppi_dyn_20260915_234156 / _20260916_001024 /
+  // _20260916_002534 showed rollout costs of -1e19..-1e25 and then NaN commands.
+  // Name the first critic that turns a row's cost non-finite or implausible
+  // (no critic adds negative cost; none comes near 1e12).
+  static unsigned int corrupt_logs = 0u;
+  const auto implausible = [](float c) {
+      return utils::isBadFloat(c) || c < -1.0e3f || c > 1.0e12f;
+    };
+  const std::size_t n = data.costs.shape(0);
+  std::vector<uint8_t> bad;
+  if (corrupt_logs < 20u) {
+    bad.resize(n);
+    for (std::size_t r = 0; r < n; ++r) {bad[r] = implausible(data.costs(r)) ? 1u : 0u;}
+  }
   for (size_t q = 0; q < critics_.size(); q++) {
     if (data.fail_flag) {
       break;
     }
     critics_[q]->score(data);
+    if (bad.empty() || corrupt_logs >= 20u) {
+      continue;
+    }
+    std::size_t fresh = 0, first = 0;
+    for (std::size_t r = 0; r < n; ++r) {
+      if (!bad[r] && implausible(data.costs(r))) {
+        bad[r] = 1u;
+        if (fresh++ == 0) {first = r;}
+      }
+    }
+    if (fresh > 0) {
+      ++corrupt_logs;
+      RCLCPP_WARN(
+        logger_, "[TGMPPI diag] critic %s made %zu row(s) corrupt; first row %zu cost %g",
+        q < critic_names_.size() ? critic_names_[q].c_str() : "?", fresh, first,
+        data.costs(first));
+    }
   }
 }
 

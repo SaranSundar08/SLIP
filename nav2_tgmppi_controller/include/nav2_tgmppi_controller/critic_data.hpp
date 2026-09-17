@@ -25,6 +25,7 @@
 #include "nav2_tgmppi_controller/models/trajectories.hpp"
 #include "nav2_tgmppi_controller/models/path.hpp"
 #include "nav2_tgmppi_controller/motion_models.hpp"
+#include "nav2_tgmppi_controller/tools/space_time_search.hpp"
 
 
 namespace tgmppi
@@ -73,6 +74,11 @@ struct CriticData
   // ended up SLOWER than CPU purely from that overhead -- this is the
   // fix, one shared upload consumed by every critic that can use it.
   const void * gpu_rollout{nullptr};
+
+  // Tracked moving obstacles (received ground-truth states only), snapshotted
+  // once per cycle in Optimizer::prepare(). nullptr when none have been
+  // received. DynamicObstacleCritic scores rollouts against their predictions.
+  const std::vector<SpaceTimeObstacle> * tracked_obstacles{nullptr};
 };
 
 }  // namespace tgmppi

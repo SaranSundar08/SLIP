@@ -18,6 +18,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
+#include <cstring>
 #include <string>
 #include <limits>
 #include <memory>
@@ -52,6 +54,25 @@
 namespace tgmppi::utils
 {
 using xt::evaluation_strategy::immediate;
+
+/**
+ * @brief True when x is NaN or +-inf, tested on the IEEE-754 bit pattern.
+ *
+ * This package compiles with -ffast-math (CMakeLists.txt, inherited from
+ * stock nav2_mppi_controller), so the compiler may assume no NaN/inf ever
+ * exists: std::isfinite() folds to true, std::isnan() to false and (x != x)
+ * to false. Verified 2026-09-16 with the package's own flags -- a runtime
+ * NaN reported isfinite=1, isnan=0 and x!=x false, while this exponent test
+ * reported it correctly. Use this, never <cmath>, for guards in this
+ * package. FlowField handles the same constraint the other way, by never
+ * producing an inf at all (see FlowField::kWetLimit).
+ */
+inline bool isBadFloat(float x)
+{
+  std::uint32_t bits;
+  std::memcpy(&bits, &x, sizeof(bits));
+  return (bits & 0x7F800000u) == 0x7F800000u;
+}
 
 /**
  * @brief Convert data into pose

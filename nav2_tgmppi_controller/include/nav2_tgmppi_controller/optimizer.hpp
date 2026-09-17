@@ -387,6 +387,13 @@ protected:
   spacetime_obstacle_subs_;
   std::mutex spacetime_obstacles_mutex_;
   std::vector<SpaceTimeObstacle> spacetime_obstacles_;
+  // Whether each configured obstacle topic has delivered at least one message.
+  // Before that its entry is not a real obstacle and must not be used.
+  std::vector<bool> spacetime_obstacle_received_;
+  // Received obstacles only, copied under the mutex once per cycle in prepare();
+  // shared by trySpacetimeAlternatives() and DynamicObstacleCritic.
+  std::vector<SpaceTimeObstacle> tracked_obstacles_snapshot_;
+  void snapshotTrackedObstacles();
   void spacetimeObstacleCallback(std::size_t index, const nav_msgs::msg::Odometry & msg);
   // Checks each valid pseudopod for a predicted moving-obstacle crossing
   // and, if found, appends up to 2 extra modes (wait/detour) into

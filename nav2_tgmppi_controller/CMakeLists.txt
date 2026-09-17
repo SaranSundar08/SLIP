@@ -104,6 +104,7 @@ add_library(tgmppi_critics SHARED
   src/tools/gpu_path_align_critic.cpp
   src/critics/obstacles_critic.cpp
   src/critics/cost_critic.cpp
+  src/critics/dynamic_obstacle_critic.cpp
   src/critics/goal_critic.cpp
   src/critics/flow_field_critic.cpp
   src/critics/goal_angle_critic.cpp

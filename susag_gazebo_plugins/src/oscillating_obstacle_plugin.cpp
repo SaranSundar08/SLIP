@@ -30,6 +30,14 @@
 // truth) to get position+velocity for free, regardless of what's driving
 // the model's motion.
 
+#include <algorithm>
+#include <cmath>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include <ignition/math/Vector2.hh>
+#include <ignition/math/Vector3.hh>
 #include <gazebo/gazebo.hh>
 #include <gazebo/common/common.hh>
 #include <gazebo/physics/physics.hh>
@@ -49,6 +57,30 @@ public:
     z_ = sdf->HasElement("z") ? sdf->Get<double>("z") : 0.3;
     amplitude_ = sdf->HasElement("amplitude") ? sdf->Get<double>("amplitude") : 0.6;
     omega_ = sdf->HasElement("omega") ? sdf->Get<double>("omega") : 0.4;
+    // Phase offset (rad), 2026-09-16: without it every obstacle starts at its
+    // centre moving the same way, so repeated runs of an experiment are not
+    // independent samples -- the whole scene replays identically.
+    phase_ = sdf->HasElement("phase") ? sdf->Get<double>("phase") : 0.0;
+
+    // Waypoint mode (2026-09-16): DynaBARN's released worlds ship one compiled
+    // plugin per obstacle, built against Gazebo 9 and without source, so they
+    // cannot run here (Gazebo 11 / ROS 2). Their generator (polynomial_fit.py)
+    // IS public, so scenarios are reproduced by fitting a polynomial through
+    // random waypoints and handing the sampled track to this plugin. With
+    // <waypoints> present the obstacle ping-pongs along that track at <speed>;
+    // without it the original sinusoid is used unchanged.
+    if (sdf->HasElement("waypoints")) {
+      std::istringstream ss(sdf->Get<std::string>("waypoints"));
+      double wx = 0.0, wy = 0.0;
+      while (ss >> wx >> wy) {
+        track_.emplace_back(wx, wy);
+      }
+      speed_ = sdf->HasElement("speed") ? sdf->Get<double>("speed") : 0.5;
+      arc_.assign(track_.size(), 0.0);
+      for (std::size_t i = 1; i < track_.size(); ++i) {
+        arc_[i] = arc_[i - 1] + track_[i - 1].Distance(track_[i]);
+      }
+    }
     axis_is_x_ = !(sdf->HasElement("axis") && sdf->Get<std::string>("axis") == "y");
 
     update_connection_ = event::Events::ConnectWorldUpdateBegin(
@@ -56,11 +88,69 @@ public:
   }
 
 private:
+  // Ping-pong along the track at constant speed: distance travelled folds into
+  // [0, length] and reverses, so an obstacle sweeps its route back and forth
+  // instead of teleporting to the start.
+  void FollowTrack(double t)
+  {
+    // Trapezoidal speed profile (2026-09-17): accelerate from and decelerate to
+    // a stop over distance d at each end, instead of reversing instantly. An
+    // instant 180-degree reversal is not how people or carts move, and it is the
+    // single worst case for a constant-velocity predictor, which keeps
+    // extrapolating the old direction at full speed. <speed> is now the PEAK.
+    const double length = arc_.back();
+    const double v_peak = std::max(1e-3, speed_);
+    const double d = std::min(1.0, 0.25 * length);
+    const double accel = v_peak * v_peak / (2.0 * d);
+    const double t_ramp = v_peak / accel;                       // = 2d / v_peak
+    const double t_cruise = std::max(0.0, (length - 2.0 * d) / v_peak);
+    const double t_half = 2.0 * t_ramp + t_cruise;
+    const double period = 2.0 * t_half;
+    double tau = std::fmod(t + phase_ / 6.2832 * period, period);
+    if (tau < 0.0) {tau += period;}
+    double dir = 1.0;
+    if (tau > t_half) {
+      tau -= t_half;
+      dir = -1.0;
+    }
+    double s_fwd = 0.0, spd = 0.0;
+    if (tau < t_ramp) {
+      s_fwd = 0.5 * accel * tau * tau;
+      spd = accel * tau;
+    } else if (tau < t_ramp + t_cruise) {
+      s_fwd = d + v_peak * (tau - t_ramp);
+      spd = v_peak;
+    } else {
+      const double r = std::max(0.0, t_half - tau);
+      s_fwd = length - 0.5 * accel * r * r;
+      spd = accel * r;
+    }
+    const double s_pos = (dir > 0.0) ? s_fwd : length - s_fwd;
+    std::size_t k = 1;
+    while (k + 1 < arc_.size() && arc_[k] < s_pos) {++k;}
+    const double seg = arc_[k] - arc_[k - 1];
+    const double frac = (seg > 1e-9) ? (s_pos - arc_[k - 1]) / seg : 0.0;
+    const auto p0 = track_[k - 1];
+    const auto p1 = track_[k];
+    const double x = p0.X() + frac * (p1.X() - p0.X());
+    const double y = p0.Y() + frac * (p1.Y() - p0.Y());
+    const double inv = (seg > 1e-9) ? 1.0 / seg : 0.0;
+    const double vx = dir * spd * (p1.X() - p0.X()) * inv;
+    const double vy = dir * spd * (p1.Y() - p0.Y()) * inv;
+    model_->SetWorldPose(ignition::math::Pose3d(x, y, z_, 0, 0, 0));
+    model_->SetLinearVel(ignition::math::Vector3d(vx, vy, 0));
+    model_->SetAngularVel(ignition::math::Vector3d(0, 0, 0));
+  }
+
   void OnUpdate()
   {
     const double t = model_->GetWorld()->SimTime().Double();
-    const double offset = amplitude_ * std::sin(omega_ * t);
-    const double speed = amplitude_ * omega_ * std::cos(omega_ * t);
+    if (track_.size() >= 2 && arc_.back() > 1e-6) {
+      FollowTrack(t);
+      return;
+    }
+    const double offset = amplitude_ * std::sin(omega_ * t + phase_);
+    const double speed = amplitude_ * omega_ * std::cos(omega_ * t + phase_);
     const double x = axis_is_x_ ? center_x_ + offset : center_x_;
     const double y = axis_is_x_ ? center_y_ : center_y_ + offset;
     const double vx = axis_is_x_ ? speed : 0.0;
@@ -82,6 +172,10 @@ private:
   double z_{0.3};
   double amplitude_{0.6};
   double omega_{0.4};
+  double phase_{0.0};
+  double speed_{0.5};
+  std::vector<ignition::math::Vector2d> track_;
+  std::vector<double> arc_;
   bool axis_is_x_{true};
 };
 
