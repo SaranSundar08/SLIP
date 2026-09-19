@@ -109,11 +109,17 @@ public:
    * become the true minimum-cost strategy in turn. Differing wait costs alone
    * was NOT enough -- both searches converged on the same passing class every
    * time (2026-09-16, log 36452: non-distinct 91/91), so the second search is
-   * now additionally CONSTRAINED to the opposite side of the obstacle from the
-   * first (avoid_same_side_as), which is what makes the two routes genuinely
-   * distinct homotopy classes rather than two labels on the same path.
-   * distinct is computed via routes_are_distinct()'s synchronized-time
-   * side test (the space-time analogue of homotopy.py's mode_side_planes).
+   * additionally CONSTRAINED to the opposite side of the obstacle from the
+   * first (avoid_same_side_as) during the search itself.
+   * distinct (2026-09-19) is computed via routesAreDistinct()'s winding-number
+   * homotopy test (T-MPC, de Groot et al., RA-L, Appendix B), replacing an
+   * earlier synchronized-time side test that required both routes to be near
+   * the obstacle at the SAME time layer -- structurally blind to pass-before
+   * vs. pass-behind routes, which are close to the obstacle at DIFFERENT
+   * layers by construction (~96% non-distinct on live data). The winding
+   * number is accumulated independently per route, so no such requirement
+   * applies. See docs/amoeba_mathematics_guide.tex, "Empirical distinctness
+   * rate and root cause", for the full diagnosis this replaces.
    */
   static void twoRouteSearch(
     const StaticFreeFn & static_free, const std::vector<SpaceTimeObstacle> & obstacles,
@@ -124,8 +130,7 @@ public:
 private:
   static bool routesAreDistinct(
     const SpaceTimeRoute & a, const SpaceTimeRoute & b,
-    const std::vector<SpaceTimeObstacle> & obstacles, float dt_layer, float horizon,
-    float relevance);
+    const std::vector<SpaceTimeObstacle> & obstacles, float dt_layer, float horizon);
 };
 
 }  // namespace tgmppi

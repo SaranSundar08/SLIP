@@ -74,6 +74,56 @@ Cell toCell(float x, float y, float x0, float y0, float res, int nx, int ny)
   return {i, j};
 }
 
+// Winding-number homotopy distinctness (2026-09-19), replacing the earlier
+// synchronized-time side test. That test required both routes to be within
+// `relevance` of the SAME obstacle at the SAME time layer to say anything --
+// but a pass-before route and a pass-behind route are close to the obstacle
+// at DIFFERENT layers by construction, so the old test was vacuously
+// unevaluated almost everywhere it mattered (live measurement: ~96% of
+// ~11,000 detections flagged non-distinct; a 9-scenario synthetic harness of
+// genuinely-distinct head-on crossings found it true in only 2/9). See
+// docs/amoeba_mathematics_guide.tex, "Empirical distinctness rate and root
+// cause", for the full diagnosis.
+//
+// This implements T-MPC's own winding-number homotopy test instead (de
+// Groot et al., RA-L, Appendix B / Table VII: winding number and H-signature
+// perform statistically identically there, winding number is ~3x cheaper to
+// evaluate and needs no numerical integration). Each route's relative angle
+// to the obstacle's predicted position is accumulated independently over the
+// WHOLE route -- no synchronized-time requirement -- giving a normalized
+// winding number lambda = (1/2*pi) * sum of wrapped angle differences. A
+// route is considered to have genuinely passed the obstacle when
+// |lambda| >= PASS_THRESHOLD (T-MPC's default, 1/(4*pi), a quarter turn);
+// two routes are distinct when some obstacle is passed by both with
+// opposite winding sign, i.e. on opposite sides.
+constexpr float PASS_THRESHOLD = 1.0f / (4.0f * static_cast<float>(M_PI));
+
+float windingNumber(
+  const SpaceTimeRoute & route, const SpaceTimeObstacle & obs, float dt_layer, float horizon)
+{
+  const size_t n = route.path.size();
+  if (n < 2) {return 0.0f;}
+  const auto relativeAngle = [&](size_t k) {
+      const auto & p = route.path[k];
+      const float t = static_cast<float>(k) * dt_layer;
+      const auto [ox, oy] = SpaceTimeSearch::predict(obs, t, horizon);
+      return std::atan2(p.second - oy, p.first - ox);
+    };
+  float lambda = 0.0f;
+  float prev_theta = relativeAngle(0);
+  for (size_t k = 1; k < n; ++k) {
+    const float theta = relativeAngle(k);
+    float dtheta = theta - prev_theta;
+    // wrap to (-pi, pi] so a step spanning the atan2 branch cut doesn't
+    // register as a near-full spurious turn
+    while (dtheta > static_cast<float>(M_PI)) {dtheta -= 2.0f * static_cast<float>(M_PI);}
+    while (dtheta <= -static_cast<float>(M_PI)) {dtheta += 2.0f * static_cast<float>(M_PI);}
+    lambda += dtheta;
+    prev_theta = theta;
+  }
+  return lambda / (2.0f * static_cast<float>(M_PI));
+}
+
 }  // namespace
 
 std::pair<float, float> SpaceTimeSearch::predict(
@@ -241,25 +291,15 @@ SpaceTimeRoute SpaceTimeSearch::search(
 
 bool SpaceTimeSearch::routesAreDistinct(
   const SpaceTimeRoute & a, const SpaceTimeRoute & b,
-  const std::vector<SpaceTimeObstacle> & obstacles, float dt_layer, float horizon,
-  float relevance)
+  const std::vector<SpaceTimeObstacle> & obstacles, float dt_layer, float horizon)
 {
-  const size_t n = std::max(a.path.size(), b.path.size());
-  const auto at = [&](const SpaceTimeRoute & r, size_t k) {
-      return k < r.path.size() ? r.path[k] : r.path.back();
-    };
-  for (size_t k = 0; k < n; ++k) {
-    const auto pa = at(a, k);
-    const auto pb = at(b, k);
-    const float t = static_cast<float>(k) * dt_layer;
-    for (const auto & obs : obstacles) {
-      const auto [ox, oy] = predict(obs, t, horizon);
-      const float dax = pa.first - ox, day = pa.second - oy;
-      const float dbx = pb.first - ox, dby = pb.second - oy;
-      const float da_norm = std::sqrt(dax * dax + day * day);
-      const float db_norm = std::sqrt(dbx * dbx + dby * dby);
-      if (da_norm > relevance || db_norm > relevance) {continue;}
-      if (dax * dbx + day * dby < 0.0f) {return true;}
+  for (const auto & obs : obstacles) {
+    const float lambda_a = windingNumber(a, obs, dt_layer, horizon);
+    const float lambda_b = windingNumber(b, obs, dt_layer, horizon);
+    if (std::fabs(lambda_a) >= PASS_THRESHOLD && std::fabs(lambda_b) >= PASS_THRESHOLD &&
+      std::signbit(lambda_a) != std::signbit(lambda_b))
+    {
+      return true;   // both routes genuinely pass this obstacle, on opposite sides
     }
   }
   return false;
@@ -285,7 +325,7 @@ void SpaceTimeSearch::twoRouteSearch(
     wait_route.feasible ? &wait_route : nullptr, 0.8f);
 
   distinct = wait_route.feasible && detour_route.feasible &&
-    routesAreDistinct(wait_route, detour_route, obstacles, dt_layer, horizon, 0.8f);
+    routesAreDistinct(wait_route, detour_route, obstacles, dt_layer, horizon);
 }
 
 }  // namespace tgmppi
