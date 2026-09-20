@@ -93,7 +93,14 @@
     <!-- Outputs -->
     <publish_odom>true</publish_odom>
     <publish_odom_tf>true</publish_odom_tf>
-    <publish_wheel_tf>true</publish_wheel_tf>
+    <!-- 2026-09-20: false. The four wheel joints are 'continuous', so
+         robot_state_publisher already owns base_link->*_wheel_1 from
+         /joint_states (10 Hz). With this true the plugin published the
+         SAME four transforms at 100 Hz as separate TFMessages: a second
+         TF authority and 400 of the ~500 /tf msg/s on the graph. That
+         rate deadlocks RViz inside tf2 (waitForTransform vs setTransform
+         lock inversion). Nothing in Nav2 consumes wheel frames. -->
+    <publish_wheel_tf>false</publish_wheel_tf>
 
     <odometry_frame>odom</odometry_frame>
     <robot_base_frame>base_link</robot_base_frame>
@@ -131,15 +138,15 @@
   <sensor type="ray" name="front_lidar_sensor">
     <pose>0 0 0 0 0 0</pose>
     <update_rate>30</update_rate>
-    <visualize>false</visualize>
+    <visualize>true</visualize>
 
     <ray>
       <scan>
         <horizontal>
           <samples>720</samples>
           <resolution>1</resolution>
-          <min_angle>-3.14</min_angle>
-          <max_angle>3.14</max_angle>
+          <min_angle>1.57079632679</min_angle>
+          <max_angle>-1.57079632679</max_angle>
         </horizontal>
       </scan>
 
@@ -177,7 +184,7 @@
   <sensor type="ray" name="rear_lidar_sensor">
     <pose>0 0 0 0 0 0</pose>
     <update_rate>30</update_rate>
-    <visualize>false</visualize>
+    <visualize>true</visualize>
 
     <ray>
       <scan>

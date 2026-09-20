@@ -22,9 +22,9 @@ find_package(xsimd REQUIRED)
 #     --cmake-args -DTGMPPI_WITH_CUDA=ON \
 #     -DCMAKE_PREFIX_PATH=$HOME/libtorch_cu126/libtorch \
 #     -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.6/bin/nvcc
-# and make sure $HOME/libtorch_cu126/libtorch/lib is on LD_LIBRARY_PATH
-# whenever you launch Nav2 (this is a runtime dlopen dependency of the
-# plugin .so, not just a build-time one).
+# LibTorch is a runtime dlopen dependency of the plugin .so, not just a
+# build-time one; its location is baked in as an RPATH below, so launching
+# Nav2 does NOT require LD_LIBRARY_PATH to be set.
 option(TGMPPI_WITH_CUDA "Build the optional LibTorch/CUDA compute_backend" OFF)
 if(TGMPPI_WITH_CUDA)
   find_package(Torch REQUIRED)
@@ -127,10 +127,23 @@ foreach(lib IN LISTS libraries)
 endforeach()
 
 if(TGMPPI_WITH_CUDA)
+  # Where LibTorch lives, to bake into the plugin's RPATH. TorchConfig.cmake
+  # sets TORCH_INSTALL_PREFIX; derive it from Torch_DIR if it ever doesn't.
+  if(NOT TORCH_INSTALL_PREFIX)
+    get_filename_component(TORCH_INSTALL_PREFIX "${Torch_DIR}/../../.." ABSOLUTE)
+  endif()
   foreach(lib IN LISTS libraries)
     target_compile_definitions(${lib} PUBLIC TGMPPI_WITH_CUDA)
     target_link_libraries(${lib} "${TORCH_LIBRARIES}")
+    # pluginlib dlopen()s this library from whatever terminal launched Nav2, so
+    # an empty RPATH made loading depend on LD_LIBRARY_PATH being set there:
+    # a fresh terminal failed with "libc10.so: cannot open shared object file"
+    # and Nav2 aborted bringup (2026-09-20). Bake the path in instead.
+    set_target_properties(${lib} PROPERTIES
+      INSTALL_RPATH "${TORCH_INSTALL_PREFIX}/lib"
+      BUILD_WITH_INSTALL_RPATH TRUE)
   endforeach()
+  message(STATUS "TG-MPPI: LibTorch RPATH -> ${TORCH_INSTALL_PREFIX}/lib")
 endif()
 
 install(TARGETS tgmppi_controller tgmppi_critics
