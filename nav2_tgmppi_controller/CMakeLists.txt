@@ -92,6 +92,7 @@ add_library(tgmppi_controller SHARED
   src/parameters_handler.cpp
   src/noise_generator.cpp
   src/tools/space_time_search.cpp
+  src/tools/space_time_body.cpp
   src/tools/gpu_rollout.cpp
 )
 

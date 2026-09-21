@@ -235,6 +235,11 @@ controller_server:
         - "/moving_obstacle_23/ground_truth/odom"
         - "/moving_obstacle_24/ground_truth/odom"
         - "/moving_obstacle_25/ground_truth/odom"
+      # Space-time blob (branch space-time-blob, docs/space_time_blob_design.md): false keeps
+      # the wait/detour search above unchanged; true replaces it with the geodesic blob lifted
+      # into (x, y, t). Toggle from the launch line with spacetime_blob:=true.
+      tgmppi_spacetime_blob: false
+      tgmppi_spacetime_blob_max_regret: 1.0
       tgmppi_spacetime_obstacle_radius: 0.25   # shared across all five obstacles --
                                                 # world_open_dynamic.world alternates
                                                 # 0.25/0.20m, so 0.25 is a safe margin,

@@ -173,6 +173,13 @@ struct OptimizerSettings
   float tgmppi_spacetime_window{2.5f};              // search grid lateral room (m)
   float tgmppi_spacetime_relevance{0.0f};           // crossing-trigger margin (m); 0 =
                                                      // only a genuine predicted collision
+  // Space-time blob (branch space-time-blob, docs/space_time_blob_design.md). false = the
+  // trigger-based wait/detour search above, unchanged. true = the geodesic blob lifted into
+  // (x, y, t): one flood over ALL predicted obstacles, routes to distinct-homotopy exits
+  // of its membrane become the space-time modes. Read once at configure.
+  bool tgmppi_spacetime_blob{false};
+  float tgmppi_spacetime_blob_max_regret{1.0f};     // m; an alternative homotopy class is kept
+                                                     // only if within this of the best route
   bool tgmppi_debug{false};           // publish /tgmppi_debug markers (scan rays + wrap arrows)
   bool tgmppi_ancillary_debug{false};   // publish up to 3 lightweight Path candidates
 

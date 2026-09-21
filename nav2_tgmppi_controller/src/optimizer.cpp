@@ -186,6 +186,8 @@ void Optimizer::getParams()
   getParam(s.tgmppi_spacetime_res, "tgmppi_spacetime_res", 0.10f);
   getParam(s.tgmppi_spacetime_window, "tgmppi_spacetime_window", 2.5f);
   getParam(s.tgmppi_spacetime_relevance, "tgmppi_spacetime_relevance", 0.0f);
+  getParam(s.tgmppi_spacetime_blob, "tgmppi_spacetime_blob", false);
+  getParam(s.tgmppi_spacetime_blob_max_regret, "tgmppi_spacetime_blob_max_regret", 1.0f);
   getParam(s.tgmppi_debug, "tgmppi_debug", false);
   getParam(s.tgmppi_ancillary_debug, "tgmppi_ancillary_debug", false);
   getParam(s.tgmppi_shadow_mode, "tgmppi_shadow_mode", true);
@@ -594,6 +596,156 @@ void Optimizer::snapshotTrackedObstacles()
   }
 }
 
+// Resample a raw (x, y)-per-dt_layer path onto this controller's own
+// (time_steps, model_dt) grid via linear interpolation, holding the
+// final position beyond the path's own duration (preserves a wait
+// tail as a held position, matching spacetime_path_to_proposal()'s
+// documented intent). Simplified relative to the sandbox: no
+// acceleration-limit reprojection or re-rollout-based refeasibility
+// check -- a documented scoping simplification given this project's
+// final-porting-day timeline, not an oversight.
+bool Optimizer::resampleSpaceTimeRoute(
+  const SpaceTimeRoute & route, float rx, float ry,
+  std::vector<float> & v, std::vector<float> & w,
+  std::vector<float> & x, std::vector<float> & y)
+{
+  const auto & s = settings_;
+  v.assign(s.time_steps, 0.0f);
+  w.assign(s.time_steps, 0.0f);
+  x.reserve(s.time_steps);
+  y.reserve(s.time_steps);
+  float prev_x = rx, prev_y = ry, prev_yaw = 0.0f;
+  bool have_prev = false;
+  for (unsigned int t = 0; t < s.time_steps; ++t) {
+    const float layer_f = static_cast<float>(t) * s.model_dt / s.tgmppi_spacetime_dt_layer;
+    const int layer = std::min(
+      static_cast<int>(route.path.size()) - 1, static_cast<int>(std::floor(layer_f)));
+    const float frac = std::min(1.0f, layer_f - static_cast<float>(layer));
+    const auto p0 = route.path[static_cast<std::size_t>(std::max(0, layer))];
+    const auto p1 = route.path[static_cast<std::size_t>(
+      std::min(static_cast<int>(route.path.size()) - 1, layer + 1))];
+    const float px = p0.first + frac * (p1.first - p0.first);
+    const float py = p0.second + frac * (p1.second - p0.second);
+    x.push_back(px);
+    y.push_back(py);
+    if (have_prev) {
+      const float dx = px - prev_x, dy = py - prev_y;
+      v[t] = std::clamp(
+        std::sqrt(dx * dx + dy * dy) / s.model_dt, 0.0f, s.constraints.vx_max);
+    }
+    prev_x = px;
+    prev_y = py;
+    have_prev = true;
+  }
+  (void)prev_yaw;
+
+  // Headings come from a LOOKAHEAD along the resampled path, not from
+  // consecutive points: two consecutive points of an 8-connected grid
+  // path (cell size = spacetime_res) can differ in direction by 180 deg,
+  // and that divided by model_dt gave |wz| ~ pi/model_dt = 63 rad/s --
+  // 33x wz_max, an unfollowable reference that still entered the sampling
+  // (observed 2026-09-16, log 36452..., pod slot 3). A route needing more
+  // than wz_max for a large share of the horizon is not a proposal this
+  // robot can act on, so it is rejected rather than clamped into nonsense.
+  const std::size_t lookahead = std::max<std::size_t>(
+    1u, static_cast<std::size_t>(std::lround(
+      0.3 / std::max(0.01f, s.constraints.vx_max * s.model_dt))));
+  float heading = static_cast<float>(tf2::getYaw(state_.pose.pose.orientation));
+  unsigned int over_limit = 0u;
+  for (unsigned int t = 0; t < s.time_steps; ++t) {
+    const std::size_t j = std::min<std::size_t>(t + lookahead, s.time_steps - 1);
+    const float dx = x[j] - x[t], dy = y[j] - y[t];
+    const float yaw = (std::sqrt(dx * dx + dy * dy) > 1e-3f) ?
+      std::atan2(dy, dx) : heading;
+    const float raw_w =
+      static_cast<float>(angles::shortest_angular_distance(heading, yaw)) / s.model_dt;
+    if (std::fabs(raw_w) > s.constraints.wz) {++over_limit;}
+    w[t] = std::clamp(raw_w, -s.constraints.wz, s.constraints.wz);
+    heading = yaw;
+  }
+  return over_limit * 4u <= s.time_steps;   // reject if >25% of steps need more than wz_max
+}
+
+void Optimizer::trySpacetimeBlob(
+  const std::vector<std::vector<std::pair<float, float>>> & pods, float rx, float ry,
+  std::vector<std::vector<float>> & mode_v, std::vector<std::vector<float>> & mode_w,
+  std::vector<std::vector<float>> & mode_x, std::vector<std::vector<float>> & mode_y,
+  std::vector<bool> & mode_valid, std::vector<float> & promises_local)
+{
+  const auto & s = settings_;
+  static unsigned int b_cycles = 0u, b_alt = 0u, b_appended = 0u, b_unfollowable = 0u;
+  static double b_ms = 0.0, b_ms_max = 0.0;
+  if (++b_cycles >= 100u) {
+    RCLCPP_INFO(
+      logger_,
+      "[TGMPPI spacetime-blob] last %u cycles: alternative class found %u, modes appended %u, "
+      "unfollowable %u, build %.2f ms mean / %.2f ms max",
+      b_cycles, b_alt, b_appended, b_unfollowable, b_ms / b_cycles, b_ms_max);
+    b_cycles = 0u; b_alt = 0u; b_appended = 0u; b_unfollowable = 0u;
+    b_ms = 0.0; b_ms_max = 0.0;
+  }
+
+  const std::size_t mode_count = std::min(pods.size(), mode_valid.size());
+  if (!flow_field_.ready()) {return;}
+
+  // Promise scale: extras compete with the static pseudopods, whose promise is the water
+  // level at a membrane exit ~body_radius away, while a blob exit is only horizon*speed away
+  // (a different distance from the goal). So anchor the best blob route to the best static
+  // pseudopod's promise and add each alternative's extra space-time cost in metres.
+  float base = std::numeric_limits<float>::max();
+  for (std::size_t m = 0; m < mode_count; ++m) {
+    if (mode_valid[m]) {base = std::min(base, promises_local[m]);}
+  }
+  if (base >= std::numeric_limits<float>::max()) {return;}
+
+  const float robot_r = static_cast<float>(costmap_ros_->getLayeredCostmap()->getInscribedRadius());
+  const auto static_free = [this](float x, float y) {
+      unsigned int mx, my;
+      if (!costmap_->worldToMap(x, y, mx, my)) {return false;}
+      const auto cost = costmap_->getCost(mx, my);
+      return cost != nav2_costmap_2d::LETHAL_OBSTACLE &&
+             cost != nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE;
+    };
+  SpaceTimeBodyParams bp;
+  bp.horizon = s.tgmppi_spacetime_horizon;
+  bp.dt_layer = s.tgmppi_spacetime_dt_layer;
+  bp.res = s.tgmppi_spacetime_res;
+  bp.robot_r = robot_r;
+  bp.max_regret = s.tgmppi_spacetime_blob_max_regret;
+  spacetime_body_.build(
+    static_free, tracked_obstacles_snapshot_,
+    [this](float x, float y) {return flow_field_.distAt(x, y);}, rx, ry, bp);
+  b_ms += spacetime_body_.buildMs();
+  b_ms_max = std::max(b_ms_max, spacetime_body_.buildMs());
+  if (!spacetime_body_.ready() || spacetime_body_.pods().size() < 2u) {return;}
+
+  // Extras only when the blob finds a genuinely different homotopy class (pass-before vs
+  // pass-behind, above vs below ...): route 0 (best) and the best route of another class.
+  const auto & sigs = spacetime_body_.signatures();
+  std::size_t alt = 0;
+  for (std::size_t i = 1; i < sigs.size(); ++i) {
+    if (sigs[i] != sigs[0]) {alt = i; break;}
+  }
+  if (alt == 0) {return;}
+  ++b_alt;
+
+  const float best_cost = spacetime_body_.promises()[0];
+  for (const std::size_t i : {std::size_t{0}, alt}) {
+    std::vector<float> v, w, x, y;
+    if (!resampleSpaceTimeRoute(spacetime_body_.pods()[i], rx, ry, v, w, x, y)) {
+      ++b_unfollowable;
+      continue;
+    }
+    ++b_appended;
+    mode_v.push_back(std::move(v));
+    mode_w.push_back(std::move(w));
+    mode_x.push_back(std::move(x));
+    mode_y.push_back(std::move(y));
+    mode_valid.push_back(true);
+    promises_local.push_back(base + (spacetime_body_.promises()[i] - best_cost));
+  }
+}
+
 void Optimizer::trySpacetimeAlternatives(
   const std::vector<std::vector<std::pair<float, float>>> & pods, float rx, float ry,
   std::vector<std::vector<float>> & mode_v, std::vector<std::vector<float>> & mode_w,
@@ -608,6 +760,10 @@ void Optimizer::trySpacetimeAlternatives(
   // Received obstacles only, snapshotted in prepare() (same set the critic sees).
   const std::vector<SpaceTimeObstacle> & obstacles = tracked_obstacles_snapshot_;
   if (obstacles.empty()) {
+    return;
+  }
+  if (s.tgmppi_spacetime_blob) {
+    trySpacetimeBlob(pods, rx, ry, mode_v, mode_w, mode_x, mode_y, mode_valid, promises_local);
     return;
   }
 
@@ -705,71 +861,10 @@ void Optimizer::trySpacetimeAlternatives(
       std::chrono::steady_clock::now() - search_t0).count();
     if (wait_route.feasible || detour_route.feasible) {++st_feasible;}
 
-    // Resample a raw (x, y)-per-dt_layer path onto this controller's own
-    // (time_steps, model_dt) grid via linear interpolation, holding the
-    // final position beyond the path's own duration (preserves a wait
-    // tail as a held position, matching spacetime_path_to_proposal()'s
-    // documented intent). Simplified relative to the sandbox: no
-    // acceleration-limit reprojection or re-rollout-based refeasibility
-    // check -- a documented scoping simplification given this project's
-    // final-porting-day timeline, not an oversight.
     const auto resample = [&](const SpaceTimeRoute & route,
       std::vector<float> & v, std::vector<float> & w,
       std::vector<float> & x, std::vector<float> & y) -> bool {
-        v.assign(s.time_steps, 0.0f);
-        w.assign(s.time_steps, 0.0f);
-        x.reserve(s.time_steps);
-        y.reserve(s.time_steps);
-        float prev_x = rx, prev_y = ry, prev_yaw = 0.0f;
-        bool have_prev = false;
-        for (unsigned int t = 0; t < s.time_steps; ++t) {
-          const float layer_f = static_cast<float>(t) * s.model_dt / s.tgmppi_spacetime_dt_layer;
-          const int layer = std::min(
-            static_cast<int>(route.path.size()) - 1, static_cast<int>(std::floor(layer_f)));
-          const float frac = std::min(1.0f, layer_f - static_cast<float>(layer));
-          const auto p0 = route.path[static_cast<std::size_t>(std::max(0, layer))];
-          const auto p1 = route.path[static_cast<std::size_t>(
-            std::min(static_cast<int>(route.path.size()) - 1, layer + 1))];
-          const float px = p0.first + frac * (p1.first - p0.first);
-          const float py = p0.second + frac * (p1.second - p0.second);
-          x.push_back(px);
-          y.push_back(py);
-          if (have_prev) {
-            const float dx = px - prev_x, dy = py - prev_y;
-            v[t] = std::clamp(
-              std::sqrt(dx * dx + dy * dy) / s.model_dt, 0.0f, s.constraints.vx_max);
-          }
-          prev_x = px;
-          prev_y = py;
-          have_prev = true;
-        }
-        (void)prev_yaw;
-
-        // Headings come from a LOOKAHEAD along the resampled path, not from
-        // consecutive points: two consecutive points of an 8-connected grid
-        // path (cell size = spacetime_res) can differ in direction by 180 deg,
-        // and that divided by model_dt gave |wz| ~ pi/model_dt = 63 rad/s --
-        // 33x wz_max, an unfollowable reference that still entered the sampling
-        // (observed 2026-09-16, log 36452..., pod slot 3). A route needing more
-        // than wz_max for a large share of the horizon is not a proposal this
-        // robot can act on, so it is rejected rather than clamped into nonsense.
-        const std::size_t lookahead = std::max<std::size_t>(
-          1u, static_cast<std::size_t>(std::lround(
-            0.3 / std::max(0.01f, s.constraints.vx_max * s.model_dt))));
-        float heading = static_cast<float>(tf2::getYaw(state_.pose.pose.orientation));
-        unsigned int over_limit = 0u;
-        for (unsigned int t = 0; t < s.time_steps; ++t) {
-          const std::size_t j = std::min<std::size_t>(t + lookahead, s.time_steps - 1);
-          const float dx = x[j] - x[t], dy = y[j] - y[t];
-          const float yaw = (std::sqrt(dx * dx + dy * dy) > 1e-3f) ?
-            std::atan2(dy, dx) : heading;
-          const float raw_w =
-            static_cast<float>(angles::shortest_angular_distance(heading, yaw)) / s.model_dt;
-          if (std::fabs(raw_w) > s.constraints.wz) {++over_limit;}
-          w[t] = std::clamp(raw_w, -s.constraints.wz, s.constraints.wz);
-          heading = yaw;
-        }
-        return over_limit * 4u <= s.time_steps;   // reject if >25% of steps need more than wz_max
+        return resampleSpaceTimeRoute(route, rx, ry, v, w, x, y);
       };
 
     // twoRouteSearch already reports whether the two routes pass the crossing

@@ -49,6 +49,7 @@
 #include "nav2_tgmppi_controller/models/trajectories.hpp"
 #include "nav2_tgmppi_controller/models/path.hpp"
 #include "nav2_tgmppi_controller/tools/flow_field.hpp"
+#include "nav2_tgmppi_controller/tools/space_time_body.hpp"
 #include "nav2_tgmppi_controller/tools/space_time_search.hpp"
 #include "nav2_tgmppi_controller/tools/noise_generator.hpp"
 #include "nav2_tgmppi_controller/tools/parameters_handler.hpp"
@@ -405,6 +406,22 @@ protected:
     std::vector<std::vector<float>> & mode_v, std::vector<std::vector<float>> & mode_w,
     std::vector<std::vector<float>> & mode_x, std::vector<std::vector<float>> & mode_y,
     std::vector<bool> & mode_valid, std::vector<float> & promises_local);
+  // Resample a (x, y)-per-dt_layer space-time route onto this controller's (time_steps,
+  // model_dt) grid as a (v, w, x, y) mode; false if it needs more than wz_max for >25% of the
+  // horizon (an unfollowable reference). Shared by the wait/detour search and the blob.
+  bool resampleSpaceTimeRoute(
+    const SpaceTimeRoute & route, float rx, float ry,
+    std::vector<float> & v, std::vector<float> & w,
+    std::vector<float> & x, std::vector<float> & y);
+  // tgmppi_spacetime_blob: the space-time blob (SpaceTimeBody) as the generator of the extra
+  // modes, in place of the crossing-triggered wait/detour search. Same slot contract as
+  // trySpacetimeAlternatives(): appends at most 2 modes past mode_count.
+  void trySpacetimeBlob(
+    const std::vector<std::vector<std::pair<float, float>>> & pods, float rx, float ry,
+    std::vector<std::vector<float>> & mode_v, std::vector<std::vector<float>> & mode_w,
+    std::vector<std::vector<float>> & mode_x, std::vector<std::vector<float>> & mode_y,
+    std::vector<bool> & mode_valid, std::vector<float> & promises_local);
+  SpaceTimeBody spacetime_body_;
   nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D *>
   ancillary_collision_checker_{nullptr};
   std::array<tgmppi::models::Control, 4> control_history_;
