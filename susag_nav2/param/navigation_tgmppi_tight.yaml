@@ -220,6 +220,21 @@ controller_server:
         - "/moving_obstacle_8/ground_truth/odom"
         - "/moving_obstacle_9/ground_truth/odom"
         - "/moving_obstacle_10/ground_truth/odom"
+        - "/moving_obstacle_11/ground_truth/odom"
+        - "/moving_obstacle_12/ground_truth/odom"
+        - "/moving_obstacle_13/ground_truth/odom"
+        - "/moving_obstacle_14/ground_truth/odom"
+        - "/moving_obstacle_15/ground_truth/odom"
+        - "/moving_obstacle_16/ground_truth/odom"
+        - "/moving_obstacle_17/ground_truth/odom"
+        - "/moving_obstacle_18/ground_truth/odom"
+        - "/moving_obstacle_19/ground_truth/odom"
+        - "/moving_obstacle_20/ground_truth/odom"
+        - "/moving_obstacle_21/ground_truth/odom"
+        - "/moving_obstacle_22/ground_truth/odom"
+        - "/moving_obstacle_23/ground_truth/odom"
+        - "/moving_obstacle_24/ground_truth/odom"
+        - "/moving_obstacle_25/ground_truth/odom"
       tgmppi_spacetime_obstacle_radius: 0.25   # shared across all five obstacles --
                                                 # world_open_dynamic.world alternates
                                                 # 0.25/0.20m, so 0.25 is a safe margin,

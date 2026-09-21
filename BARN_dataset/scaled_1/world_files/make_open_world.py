@@ -201,6 +201,10 @@ parser.add_argument("--obstacles", type=int, default=10,
                     help="polynomial mode: number of obstacles")
 parser.add_argument("--speed-min", type=float, default=0.30, help="polynomial mode (m/s)")
 parser.add_argument("--speed-max", type=float, default=1.00, help="polynomial mode (m/s)")
+parser.add_argument("--radius-scale", type=float, default=1.0,
+                    help="polynomial mode: scale the obstacle cylinder radius (0.25/0.20 m) by this "
+                         "factor. Tracks are still fitted with the UNSCALED radius, so the paths are "
+                         "identical to the scale-1.0 world with the same seed; only the body shrinks.")
 parser.add_argument("--scenario", default=None,
                     help="write world_<name>.world and matching map yaml links, so the "
                          "launch can select it with world_idx:=<name>")
@@ -315,7 +319,7 @@ if args.motion == "polynomial":
         speed = round(rng.uniform(args.speed_min, args.speed_max), 3)
         if speed >= args.vx_max:
             problems.append("obstacle %d speed %.2f >= vx_max %.2f" % (i + 1, speed, args.vx_max))
-        radius = 0.25 if i % 2 == 0 else 0.20
+        radius = round((0.25 if i % 2 == 0 else 0.20) * args.radius_scale, 3)
         obstacles.append(dict(
             idx=i + 1, cx=round(pts[0][0], 3), cy=round(pts[0][1], 3), radius=radius,
             color=COLORS[i % len(COLORS)], phase=0.0, speed=speed,
