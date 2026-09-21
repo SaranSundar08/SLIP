@@ -30,7 +30,13 @@ struct SpaceTimeBodyParams
   float horizon{3.0f};           // s; K = round(horizon / dt_layer) layers
   float dt_layer{0.25f};         // s
   float res{0.10f};              // m; grid speed is res / dt_layer (one cell per layer)
-  float robot_r{0.34f};          // m; inscribed radius (obstacle clearance test)
+  float robot_r{0.34f};          // m; clearance radius kept from each predicted obstacle. Must
+                                 // match what the rollout critic will accept: the two-disc
+                                 // DynamicObstacleCritic needs ~0.62 m (alongside) to 0.86 m (head-on)
+                                 // centre distance at 0.25 m obstacles, and obstacles move up to
+                                 // 0.25 m per layer, so the inscribed radius (0.34) is too tight
+  // An obstacle already closer than robot_r + its radius at the start would leave no legal move;
+  // its clearance is relaxed to (current distance - 0.02 m), never below its own radius.
   float terminal_weight{1.0f};   // weight of the static water level at the membrane
   float wait_epsilon{0.01f};     // m; per-waited-layer tie-break (time is priced by the
                                  // terminal water level, not by a tuned wait cost)

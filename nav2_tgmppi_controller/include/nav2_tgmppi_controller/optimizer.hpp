@@ -422,6 +422,29 @@ protected:
     std::vector<std::vector<float>> & mode_x, std::vector<std::vector<float>> & mode_y,
     std::vector<bool> & mode_valid, std::vector<float> & promises_local);
   SpaceTimeBody spacetime_body_;
+  // ---- Phase 2: blob routes as the pseudopod slots (tgmppi_spacetime_blob_pods) ----
+  // Own tracker + key range: static pseudopods are rebuilt every reflood_every cycles, these
+  // every cycle (they depend on where the obstacles are NOW), and the two id spaces must not mix.
+  static constexpr int kSpacetimePodKeyBase = 100000;
+  struct StTrackedPod
+  {
+    int id;
+    SpaceTimeRoute route;
+    float promise;
+  };
+  std::vector<StTrackedPod> st_tracked_prev_;
+  std::array<int, kPodSlots> st_slot_ids_{{-1, -1, -1}};
+  int next_st_id_{0};
+  unsigned int st_unfollowable_count_{0u};   // routes rejected as unfollowable (log counter)
+  bool st_pods_active_{false};   // gate state with hysteresis, persists across cycles
+  // Slot-ordered, like display_pods_: st_display_pods_[m] is slot m's (x, y) polyline (empty =
+  // no route in this slot), st_display_routes_[m] the same route with its layer timing.
+  std::vector<std::vector<std::pair<float, float>>> st_display_pods_;
+  std::vector<float> st_display_promises_;
+  std::vector<SpaceTimeRoute> st_display_routes_;
+  // Builds this cycle's space-time pods; true if they replace the static pseudopods this cycle.
+  bool buildSpacetimePods(float rx, float ry);
+  SpaceTimeBody spacetime_body_free_;   // same flood without obstacles: the gate's reference
   nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D *>
   ancillary_collision_checker_{nullptr};
   std::array<tgmppi::models::Control, 4> control_history_;

@@ -169,6 +169,33 @@ int main()
     CHECK(worst < 20.0, "build too slow: %.3f ms", worst);
   }
 
+  std::printf("T8 obstacle already inside the requested clearance at t = 0 -> still routes out\n");
+  {
+    SpaceTimeBodyParams q = p;
+    q.robot_r = 0.5f;                                       // wants 0.75 m from a 0.25 m obstacle
+    const std::vector<SpaceTimeObstacle> obs = {{0.5f, 0.0f, 0.0f, 0.0f, 0.25f}};   // only 0.5 m away
+    SpaceTimeBody b;
+    b.build(kAllFree, obs, goalDistance(4.0f, 0.0f), 0.0f, 0.0f, q);
+    CHECK(b.ready() && !b.pods().empty(), "robot inside the requested clearance has no way out");
+    // Never allowed closer than it started (0.5 m): relaxed clearance is d0 - 0.02 = 0.48.
+    for (const auto & r : b.pods()) {
+      for (int k = 1; k < static_cast<int>(r.path.size()); ++k) {
+        CHECK(std::hypot(r.path[k].first - 0.5f, r.path[k].second) > 0.48f - 1e-3f, "pod entered relaxed clearance");
+      }
+    }
+  }
+
+  std::printf("T9 larger clearance radius keeps more distance than the inscribed one\n");
+  {
+    const std::vector<SpaceTimeObstacle> obs = {{0.9f, 0.0f, 0.0f, 0.0f, 0.25f}};
+    SpaceTimeBodyParams q = p;
+    q.robot_r = 0.5f;
+    SpaceTimeBody b;
+    b.build(kAllFree, obs, goalDistance(4.0f, 0.0f), 0.0f, 0.0f, q);
+    CHECK(b.ready() && !b.pods().empty(), "no pods");
+    checkRoutes("T9", b, kAllFree, obs, q, 0.0f, 0.0f);   // checks clearance 0.25 + 0.5 = 0.75
+  }
+
   std::printf(g_fail == 0 ? "\nALL PASSED\n" : "\n%d CHECK(S) FAILED\n", g_fail);
   return g_fail == 0 ? 0 : 1;
 }

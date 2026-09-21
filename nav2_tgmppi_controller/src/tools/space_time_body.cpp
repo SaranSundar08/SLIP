@@ -106,6 +106,17 @@ void SpaceTimeBody::build(
     if (relevant) {rel.push_back(o);}
   }
 
+  // Per-obstacle clearance^2 (index-aligned with rel): the requested clearance, relaxed for an
+  // obstacle that is already inside it at t = 0 so the robot always has a legal way out.
+  std::vector<float> clear2;
+  clear2.reserve(rel.size());
+  for (const auto & o : rel) {
+    const float required = o.radius + p.robot_r;
+    const float d0 = std::hypot(o.x - start_x, o.y - start_y);
+    const float c = std::min(required, std::max(o.radius, d0 - 0.02f));
+    clear2.push_back(c * c);
+  }
+
   // Static free mask: layer-independent, evaluated once.
   std::vector<uint8_t> sfree(plane, 0);
   for (int j = 0; j < n_; ++j) {
@@ -124,9 +135,8 @@ void SpaceTimeBody::build(
     const float t = static_cast<float>(k + 1) * p.dt_layer;
     std::vector<std::pair<std::pair<float, float>, float>> pos;   // obstacle centre, clearance^2
     pos.reserve(rel.size());
-    for (const auto & o : rel) {
-      const float reach = o.radius + p.robot_r;
-      pos.push_back({SpaceTimeSearch::predict(o, t, p.horizon), reach * reach});
+    for (std::size_t oi = 0; oi < rel.size(); ++oi) {
+      pos.push_back({SpaceTimeSearch::predict(rel[oi], t, p.horizon), clear2[oi]});
     }
     for (int j = 0; j < n_; ++j) {
       for (int i = 0; i < n_; ++i) {

@@ -239,6 +239,9 @@ controller_server:
       # the wait/detour search above unchanged; true replaces it with the geodesic blob lifted
       # into (x, y, t). Toggle from the launch line with spacetime_blob:=true.
       tgmppi_spacetime_blob: false
+      tgmppi_spacetime_blob_pods: false   # phase 2; spacetime_blob:=pods on the launch line
+      tgmppi_spacetime_blob_gate: 0.2
+      tgmppi_spacetime_blob_robot_radius: 0.50   # keeps 0.75 m from a 0.25 m obstacle; critic needs >= 0.62 (alongside)
       tgmppi_spacetime_blob_max_regret: 1.0
       tgmppi_spacetime_obstacle_radius: 0.25   # shared across all five obstacles --
                                                 # world_open_dynamic.world alternates

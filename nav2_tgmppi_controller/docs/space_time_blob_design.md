@@ -1,6 +1,6 @@
 # Space-time blob (branch `space-time-blob`)
 
-Status: design + Phase 1 in progress. Started 2026-09-21. Nothing here is merged to `main`
+Status (2026-09-21): Phase 1 and Phase 2 implemented, compiled (syntax-only against the package flags), NOT yet run in Gazebo. Nothing here is merged to `main`
 until the verification gates at the bottom pass.
 
 ## What the current controller does
@@ -58,6 +58,19 @@ existing `resample()` -> (v, w, x, y) mode builder unchanged.
   present (tracking by signature instead of spatial overlap); static blob otherwise.
 * **Phase 3** — benchmarks: `dyn1..5` (10 obstacles) and the density worlds `d15_*`, `d20_*`,
   conditions B (current), D (plain prediction), and the new blob.
+
+## As implemented
+
+Switches (launch `spacetime_blob:=`): `false` = wait/detour search (main behaviour);
+`true` = Phase 1 (2 extra modes from the blob); `pods` = Phase 2.
+
+Phase 2 (`buildSpacetimePods`, per cycle): flood with all obstacles + the same flood without;
+`delay = best promise (with) - best promise (without)`. Space-time pods are active from
+`delay >= tgmppi_spacetime_blob_gate` (0.2 m) until `delay < gate/2` (hysteresis). While active the 3
+pod slots hold the blob routes (own tracker: time-aligned route overlap, own key range
+`kSpacetimePodKeyBase = 100000`), the mode reference is the resampled route instead of a
+pure-pursuit polyline, with the same footprint collision check; the wait/detour extras are off.
+Inactive = static pseudopods, unchanged. Benchmark conditions: `E` (phase 1), `F` (phase 2).
 
 ## Verification gates before merging to `main`
 

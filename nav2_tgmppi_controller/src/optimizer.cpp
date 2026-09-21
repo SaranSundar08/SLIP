@@ -187,6 +187,9 @@ void Optimizer::getParams()
   getParam(s.tgmppi_spacetime_window, "tgmppi_spacetime_window", 2.5f);
   getParam(s.tgmppi_spacetime_relevance, "tgmppi_spacetime_relevance", 0.0f);
   getParam(s.tgmppi_spacetime_blob, "tgmppi_spacetime_blob", false);
+  getParam(s.tgmppi_spacetime_blob_pods, "tgmppi_spacetime_blob_pods", false);
+  getParam(s.tgmppi_spacetime_blob_robot_radius, "tgmppi_spacetime_blob_robot_radius", 0.50f);
+  getParam(s.tgmppi_spacetime_blob_gate, "tgmppi_spacetime_blob_gate", 0.2f);
   getParam(s.tgmppi_spacetime_blob_max_regret, "tgmppi_spacetime_blob_max_regret", 1.0f);
   getParam(s.tgmppi_debug, "tgmppi_debug", false);
   getParam(s.tgmppi_ancillary_debug, "tgmppi_ancillary_debug", false);
@@ -292,6 +295,12 @@ void Optimizer::reset()
   pod_slot_ids_.fill(-1);
   display_pods_.clear();
   display_promises_.clear();
+  st_tracked_prev_.clear();
+  st_slot_ids_.fill(-1);
+  st_pods_active_ = false;
+  st_display_pods_.clear();
+  st_display_promises_.clear();
+  st_display_routes_.clear();
   ancillary_mode_key_.fill(kNoModeKey);
   mode_nominals_.clear();
   selected_mode_key_ = kNoModeKey;
@@ -666,6 +675,149 @@ bool Optimizer::resampleSpaceTimeRoute(
   return over_limit * 4u <= s.time_steps;   // reject if >25% of steps need more than wz_max
 }
 
+bool Optimizer::buildSpacetimePods(float rx, float ry)
+{
+  const auto & s = settings_;
+  st_display_pods_.clear();
+  st_display_promises_.clear();
+  st_display_routes_.clear();
+  const auto deactivate = [this]() {
+      st_pods_active_ = false;
+      st_tracked_prev_.clear();
+      st_slot_ids_.fill(-1);
+      return false;
+    };
+  if (!s.tgmppi_spacetime_blob_pods || !s.tgmppi_spacetime_enabled ||
+    s.tgmppi_spacetime_obstacle_topics.empty() || tracked_obstacles_snapshot_.empty() ||
+    !flow_field_.ready())
+  {
+    return deactivate();
+  }
+
+  static unsigned int c_cycles = 0u, c_active = 0u, c_slots = 0u;
+  static double c_ms = 0.0, c_ms_max = 0.0;
+  if (++c_cycles >= 100u) {
+    RCLCPP_INFO(
+      logger_,
+      "[TGMPPI spacetime-pods] last %u cycles: space-time pods active %u, slots filled %u, "
+      "unfollowable %u, build %.2f ms mean / %.2f ms max",
+      c_cycles, c_active, c_slots, st_unfollowable_count_, c_ms / c_cycles, c_ms_max);
+    c_cycles = 0u; c_active = 0u; c_slots = 0u; c_ms = 0.0; c_ms_max = 0.0;
+    st_unfollowable_count_ = 0u;
+  }
+
+  const float robot_r = static_cast<float>(costmap_ros_->getLayeredCostmap()->getInscribedRadius());
+  const auto static_free = [this](float x, float y) {
+      unsigned int mx, my;
+      if (!costmap_->worldToMap(x, y, mx, my)) {return false;}
+      const auto cost = costmap_->getCost(mx, my);
+      return cost != nav2_costmap_2d::LETHAL_OBSTACLE &&
+             cost != nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE;
+    };
+  const auto terminal = [this](float x, float y) {return flow_field_.distAt(x, y);};
+  SpaceTimeBodyParams bp;
+  bp.horizon = s.tgmppi_spacetime_horizon;
+  bp.dt_layer = s.tgmppi_spacetime_dt_layer;
+  bp.res = s.tgmppi_spacetime_res;
+  bp.robot_r = std::max(robot_r, s.tgmppi_spacetime_blob_robot_radius);
+  bp.max_regret = s.tgmppi_spacetime_blob_max_regret;
+  bp.max_pods = static_cast<int>(kPodSlots);
+  spacetime_body_.build(static_free, tracked_obstacles_snapshot_, terminal, rx, ry, bp);
+  c_ms += spacetime_body_.buildMs();
+  c_ms_max = std::max(c_ms_max, spacetime_body_.buildMs());
+  if (!spacetime_body_.ready() || spacetime_body_.pods().empty()) {return deactivate();}
+
+  // Gate with hysteresis: switch to space-time pods once the moving obstacles cost at least
+  // `gate` metres on the best route (vs. the same flood without obstacles), and back to the
+  // static pseudopods only below gate/2, so the slots do not flap around the threshold.
+  spacetime_body_free_.build(static_free, {}, terminal, rx, ry, bp);
+  c_ms += spacetime_body_free_.buildMs();
+  float delay = 0.0f;
+  if (spacetime_body_free_.ready() && !spacetime_body_free_.promises().empty()) {
+    delay = spacetime_body_.promises()[0] - spacetime_body_free_.promises()[0];
+  }
+  const float gate = s.tgmppi_spacetime_blob_gate;
+  st_pods_active_ = st_pods_active_ ? (delay >= 0.5f * gate) : (delay >= gate);
+  if (!st_pods_active_) {return deactivate();}
+  ++c_active;
+
+  // Track by TIME-ALIGNED overlap (both routes hold one point per layer): 0.5 * mean layer
+  // distance + 0.5 * end distance, greedy best-unused match under tgmppi_pod_match_distance.
+  std::vector<StTrackedPod> tracked;
+  std::vector<bool> used(st_tracked_prev_.size(), false);
+  for (std::size_t k = 0; k < spacetime_body_.pods().size(); ++k) {
+    const auto & route = spacetime_body_.pods()[k];
+    int best = -1;
+    float best_metric = std::numeric_limits<float>::max();
+    for (std::size_t j = 0; j < st_tracked_prev_.size(); ++j) {
+      const auto & old = st_tracked_prev_[j].route;
+      if (used[j] || old.path.size() != route.path.size() || route.path.empty()) {continue;}
+      float mean_d = 0.0f;
+      for (std::size_t i = 0; i < route.path.size(); ++i) {
+        mean_d += std::hypot(
+          route.path[i].first - old.path[i].first, route.path[i].second - old.path[i].second);
+      }
+      mean_d /= static_cast<float>(route.path.size());
+      const float end_d = std::hypot(
+        route.path.back().first - old.path.back().first,
+        route.path.back().second - old.path.back().second);
+      const float metric = 0.5f * mean_d + 0.5f * end_d;
+      if (metric < best_metric) {best_metric = metric; best = static_cast<int>(j);}
+    }
+    int id;
+    if (best >= 0 && best_metric <= s.tgmppi_pod_match_distance) {
+      used[best] = true;
+      id = st_tracked_prev_[best].id;
+    } else {
+      id = next_st_id_++;
+    }
+    tracked.push_back({id, route, spacetime_body_.promises()[k]});
+  }
+
+  // Slot assignment, same rules as trackPseudopods(): an id keeps its slot, vanished ids free
+  // theirs, new ids take the first free slot.
+  std::array<int, kPodSlots> new_slots{{-1, -1, -1}};
+  std::vector<bool> placed(tracked.size(), false);
+  for (std::size_t m = 0; m < kPodSlots; ++m) {
+    if (st_slot_ids_[m] < 0) {continue;}
+    for (std::size_t k = 0; k < tracked.size(); ++k) {
+      if (!placed[k] && tracked[k].id == st_slot_ids_[m]) {
+        new_slots[m] = tracked[k].id;
+        placed[k] = true;
+        break;
+      }
+    }
+  }
+  for (std::size_t k = 0; k < tracked.size(); ++k) {
+    if (placed[k]) {continue;}
+    for (std::size_t m = 0; m < kPodSlots; ++m) {
+      if (new_slots[m] < 0) {
+        new_slots[m] = tracked[k].id;
+        placed[k] = true;
+        break;
+      }
+    }
+  }
+  st_slot_ids_ = new_slots;
+  st_display_pods_.assign(kPodSlots, std::vector<std::pair<float, float>>{});
+  st_display_promises_.assign(kPodSlots, 0.0f);
+  st_display_routes_.assign(kPodSlots, SpaceTimeRoute{});
+  for (std::size_t m = 0; m < kPodSlots; ++m) {
+    if (new_slots[m] < 0) {continue;}
+    for (const auto & pod : tracked) {
+      if (pod.id == new_slots[m]) {
+        st_display_pods_[m] = pod.route.path;
+        st_display_promises_[m] = pod.promise;
+        st_display_routes_[m] = pod.route;
+        ++c_slots;
+        break;
+      }
+    }
+  }
+  st_tracked_prev_ = std::move(tracked);
+  return true;
+}
+
 void Optimizer::trySpacetimeBlob(
   const std::vector<std::vector<std::pair<float, float>>> & pods, float rx, float ry,
   std::vector<std::vector<float>> & mode_v, std::vector<std::vector<float>> & mode_w,
@@ -673,15 +825,15 @@ void Optimizer::trySpacetimeBlob(
   std::vector<bool> & mode_valid, std::vector<float> & promises_local)
 {
   const auto & s = settings_;
-  static unsigned int b_cycles = 0u, b_alt = 0u, b_appended = 0u, b_unfollowable = 0u;
+  static unsigned int b_cycles = 0u, b_gated = 0u, b_alt = 0u, b_appended = 0u, b_unfollowable = 0u;
   static double b_ms = 0.0, b_ms_max = 0.0;
   if (++b_cycles >= 100u) {
     RCLCPP_INFO(
       logger_,
-      "[TGMPPI spacetime-blob] last %u cycles: alternative class found %u, modes appended %u, "
-      "unfollowable %u, build %.2f ms mean / %.2f ms max",
-      b_cycles, b_alt, b_appended, b_unfollowable, b_ms / b_cycles, b_ms_max);
-    b_cycles = 0u; b_alt = 0u; b_appended = 0u; b_unfollowable = 0u;
+      "[TGMPPI spacetime-blob] last %u cycles: obstacles cost >= gate %u, alternative class found %u, "
+      "modes appended %u, unfollowable %u, build %.2f ms mean / %.2f ms max",
+      b_cycles, b_gated, b_alt, b_appended, b_unfollowable, b_ms / b_cycles, b_ms_max);
+    b_cycles = 0u; b_gated = 0u; b_alt = 0u; b_appended = 0u; b_unfollowable = 0u;
     b_ms = 0.0; b_ms_max = 0.0;
   }
 
@@ -710,7 +862,7 @@ void Optimizer::trySpacetimeBlob(
   bp.horizon = s.tgmppi_spacetime_horizon;
   bp.dt_layer = s.tgmppi_spacetime_dt_layer;
   bp.res = s.tgmppi_spacetime_res;
-  bp.robot_r = robot_r;
+  bp.robot_r = std::max(robot_r, s.tgmppi_spacetime_blob_robot_radius);
   bp.max_regret = s.tgmppi_spacetime_blob_max_regret;
   spacetime_body_.build(
     static_free, tracked_obstacles_snapshot_,
@@ -718,6 +870,23 @@ void Optimizer::trySpacetimeBlob(
   b_ms += spacetime_body_.buildMs();
   b_ms_max = std::max(b_ms_max, spacetime_body_.buildMs());
   if (!spacetime_body_.ready() || spacetime_body_.pods().size() < 2u) {return;}
+
+  // Gate: do the moving obstacles actually cost anything? Reference = the same flood with no
+  // obstacles. Without this, a dense scene finds an "alternative class" in ~every cycle (any
+  // route winds around something) and the extras would permanently take sampling budget from
+  // the static pseudopods.
+  {
+    spacetime_body_free_.build(
+      static_free, {}, [this](float x, float y) {return flow_field_.distAt(x, y);}, rx, ry, bp);
+    b_ms += spacetime_body_free_.buildMs();
+    if (spacetime_body_free_.ready() && !spacetime_body_free_.promises().empty() &&
+      spacetime_body_.promises()[0] - spacetime_body_free_.promises()[0] <
+      s.tgmppi_spacetime_blob_gate)
+    {
+      return;
+    }
+    ++b_gated;
+  }
 
   // Extras only when the blob finds a genuinely different homotopy class (pass-before vs
   // pass-behind, above vs below ...): route 0 (best) and the best route of another class.
@@ -1091,8 +1260,10 @@ void Optimizer::applyFlowBias()
     }
   }
 
-  const auto & pods = display_pods_;          // slot-ordered (see trackPseudopods)
-  const auto & promises = display_promises_;
+  // Phase 2: while moving obstacles matter, the slots hold the blob's (x, y, t) routes.
+  const bool st_pods = buildSpacetimePods(rx, ry);
+  const auto & pods = st_pods ? st_display_pods_ : display_pods_;   // slot-ordered (see trackPseudopods)
+  const auto & promises = st_pods ? st_display_promises_ : display_promises_;
   const std::size_t mode_count = std::min(pods.size(), promises.size());
   std::size_t nonempty_pods = 0;
   for (std::size_t m = 0; m < mode_count; ++m) {
@@ -1103,7 +1274,10 @@ void Optimizer::applyFlowBias()
   }
   for (std::size_t m = 0; m < ancillary_mode_key_.size(); ++m) {
     ancillary_mode_key_[m] = (m < kPodSlots) ?
-      (s.tgmppi_pod_tracking ? pod_slot_ids_[m] : static_cast<int>(m)) :
+      (st_pods ?
+      (st_slot_ids_[m] >= 0 ? kSpacetimePodKeyBase + st_slot_ids_[m] :
+      kSpacetimePodKeyBase - 1 - static_cast<int>(m)) :
+      (s.tgmppi_pod_tracking ? pod_slot_ids_[m] : static_cast<int>(m))) :
       kSpacetimeKeyBase + static_cast<int>(m);
   }
   const float warm = std::clamp(s.tgmppi_mode_warm_start, 0.0f, 1.0f);
@@ -1256,6 +1430,43 @@ void Optimizer::applyFlowBias()
       return valid;
     };
 
+  // Phase 2 counterpart of generate_pod_reference: the slot's reference is the blob route
+  // itself (time-parameterised, resampled onto this controller's grid), not a pure-pursuit
+  // controller chasing a time-free polyline. Same footprint collision test as the static pods.
+  auto generate_spacetime_reference = [&](std::size_t m) -> bool {
+      std::vector<float> v, w, x, y;
+      if (!resampleSpaceTimeRoute(st_display_routes_[m], rx, ry, v, w, x, y)) {
+        ++st_unfollowable_count_;
+        return false;
+      }
+      bool valid = true;
+      if (s.ancillary_collision_check) {
+        const std::size_t lookahead = std::max<std::size_t>(
+          1u, static_cast<std::size_t>(std::lround(
+            0.3 / std::max(0.01f, s.constraints.vx_max * s.model_dt))));
+        for (unsigned int t = 0; t < s.time_steps && valid; ++t) {
+          if (!(t % collision_stride == 0 || t + 1 == s.time_steps)) {continue;}
+          const std::size_t j = std::min<std::size_t>(t + lookahead, s.time_steps - 1);
+          const float dx = x[j] - x[t], dy = y[j] - y[t];
+          const float yaw = (std::sqrt(dx * dx + dy * dy) > 1e-3f) ? std::atan2(dy, dx) : ryaw;
+          unsigned int mx, my;
+          if (!costmap_->worldToMap(x[t], y[t], mx, my)) {
+            valid = false;
+          } else {
+            const auto cell_cost = static_cast<unsigned char>(
+              ancillary_collision_checker_.footprintCostAtPose(x[t], y[t], yaw, footprint));
+            valid = cell_cost != nav2_costmap_2d::LETHAL_OBSTACLE &&
+              (cell_cost != nav2_costmap_2d::NO_INFORMATION || tracking_unknown);
+          }
+        }
+      }
+      mode_v[m] = std::move(v);
+      mode_w[m] = std::move(w);
+      mode_x[m] = std::move(x);
+      mode_y[m] = std::move(y);
+      return valid;
+    };
+
   for (std::size_t m = 0; m < mode_count; ++m) {
     if (pods[m].size() < 2) {
       // empty tracked slot (tgmppi_pod_tracking): no pseudopod here this reflood
@@ -1263,8 +1474,9 @@ void Optimizer::applyFlowBias()
       if (m < ancillary_mode_valid_.size()) {ancillary_mode_valid_[m] = false;}
       continue;
     }
-    bool valid = generate_pod_reference(m, s.tgmppi_reference_min_speed_ratio);
-    if (!valid && s.tgmppi_reference_infeasible_fallback &&
+    bool valid = st_pods ? generate_spacetime_reference(m) :
+      generate_pod_reference(m, s.tgmppi_reference_min_speed_ratio);
+    if (!st_pods && !valid && s.tgmppi_reference_infeasible_fallback &&
       s.tgmppi_reference_min_speed_ratio > 0.15f)
     {
       // Retry this one pseudopod with the safe floor -- the sandbox's
@@ -1340,7 +1552,9 @@ void Optimizer::applyFlowBias()
   // trySpacetimeAlternatives()'s docstring: they compete on equal footing
   // with the pseudopod that triggered them).
   std::vector<float> promises_local(promises.begin(), promises.end());
-  trySpacetimeAlternatives(pods, rx, ry, mode_v, mode_w, mode_x, mode_y, mode_valid, promises_local);
+  if (!st_pods) {
+    trySpacetimeAlternatives(pods, rx, ry, mode_v, mode_w, mode_x, mode_y, mode_valid, promises_local);
+  }
   for (std::size_t m = mode_count; m < mode_v.size() && m < ancillary_mode_valid_.size(); ++m) {
     ancillary_mode_valid_[m] = mode_valid[m];
     ancillary_rollout_x_[m] = mode_x[m];
@@ -1508,7 +1722,7 @@ bool Optimizer::isLocalPathBlocked() const
 
 void Optimizer::publishAncillaryPaths()
 {
-  const auto & pods = display_pods_;  // slot-ordered: path i == ancillary slot i
+  const auto & pods = st_pods_active_ ? st_display_pods_ : display_pods_;  // slot-ordered: path i == ancillary slot i
   const std::string frame = costmap_ros_->getGlobalFrameID();
   for (std::size_t i = 0; i < ancillary_path_pubs_.size(); ++i) {
     nav_msgs::msg::Path path;

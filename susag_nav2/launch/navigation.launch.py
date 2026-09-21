@@ -113,23 +113,30 @@ def group_allocation_params(src_path, mode):
     return out.name, ['tgmppi_group_allocation %s -> %s' % (previous, mode)]
 
 
-def spacetime_blob_params(src_path, enabled):
-    """Set TG-MPPI's tgmppi_spacetime_blob (2026-09-21, branch space-time-blob): the geodesic
-    blob lifted into (x, y, t) as the generator of the space-time modes. No-op on the baseline
-    (no FollowPath TG-MPPI params) and when the value is already what was asked."""
+def spacetime_blob_params(src_path, mode):
+    """Set TG-MPPI's space-time blob switches (2026-09-21, branch space-time-blob).
+    mode: 'false' = wait/detour search (default); 'true' = blob generates the 2 extra modes
+    (phase 1); 'pods' = blob routes become the 3 pseudopod slots while moving obstacles matter
+    (phase 2). No-op on the baseline (no TG-MPPI FollowPath params) or when nothing changes."""
     with open(src_path) as f:
         data = yaml.safe_load(f)
     fp = data.get('controller_server', {}).get('ros__parameters', {}).get('FollowPath', {})
     if 'tgmppi_group_allocation' not in fp:   # not a TG-MPPI params file
         return src_path, []
-    previous = bool(fp.get('tgmppi_spacetime_blob', False))
-    if previous == enabled:
+    want = {'tgmppi_spacetime_blob': mode in ('true', 'pods'),
+            'tgmppi_spacetime_blob_pods': mode == 'pods'}
+    changes = []
+    for key, value in want.items():
+        previous = bool(fp.get(key, False))
+        if previous != value:
+            fp[key] = value
+            changes.append('%s %s -> %s' % (key, previous, value))
+    if not changes:
         return src_path, []
-    fp['tgmppi_spacetime_blob'] = enabled
     out = tempfile.NamedTemporaryFile(mode='w', suffix='_blob.yaml', delete=False)
     yaml.safe_dump(data, out)
     out.close()
-    return out.name, ['tgmppi_spacetime_blob %s -> %s' % (previous, enabled)]
+    return out.name, changes
 
 
 def backend_params(src_path, backend):
@@ -314,12 +321,12 @@ def launch_nav2(context, nav2_launch_path, configured_params):
         actions.append(LogInfo(msg="[group_allocation] ignored: '%s' is not legacy or equal"
                                    % allocation))
     blob = LaunchConfiguration('spacetime_blob').perform(context).strip().lower()
-    if blob in ('true', 'false'):
-        params_path, sbchanges = spacetime_blob_params(params_path, blob == 'true')
+    if blob in ('true', 'false', 'pods'):
+        params_path, sbchanges = spacetime_blob_params(params_path, blob)
         if sbchanges:
             actions.append(LogInfo(msg='[spacetime_blob] ' + '; '.join(sbchanges)))
     elif blob:
-        actions.append(LogInfo(msg="[spacetime_blob] ignored: '%s' is not true or false" % blob))
+        actions.append(LogInfo(msg="[spacetime_blob] ignored: '%s' is not true, false or pods" % blob))
     backend = LaunchConfiguration('backend').perform(context).strip().lower()
     if backend in ('cpu', 'cuda'):
         params_path, bchanges = backend_params(params_path, backend)
@@ -472,9 +479,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             name='spacetime_blob',
             default_value='',
-            description="TG-MPPI space-time blob (branch space-time-blob): 'true' generates the "
-                        "space-time modes from the geodesic blob lifted into (x, y, t); 'false' "
-                        "keeps the wait/detour search. Empty = YAML (default false)."
+            description="TG-MPPI space-time blob (branch space-time-blob): 'true' = the geodesic "
+                        "blob lifted into (x, y, t) generates the 2 extra space-time modes; "
+                        "'pods' = its routes become the 3 pseudopod slots while moving obstacles "
+                        "matter; 'false' = the wait/detour search. Empty = YAML (default false)."
         ),
 
         DeclareLaunchArgument(

@@ -178,6 +178,18 @@ struct OptimizerSettings
   // (x, y, t): one flood over ALL predicted obstacles, routes to distinct-homotopy exits
   // of its membrane become the space-time modes. Read once at configure.
   bool tgmppi_spacetime_blob{false};
+  // Phase 2 (implies the blob): while moving obstacles matter (gate above, with hysteresis) the
+  // 3 pseudopod slots are the blob's own (x, y, t) routes instead of the static pseudopods,
+  // rebuilt every cycle and tracked by time-aligned route overlap; otherwise the static
+  // pseudopods are used unchanged. No wait/detour extras in this mode.
+  bool tgmppi_spacetime_blob_pods{false};
+  float tgmppi_spacetime_blob_robot_radius{0.50f};  // m; clearance radius the blob keeps from moving
+                                                     // obstacles (must satisfy DynamicObstacleCritic's
+                                                     // two-disc geometry, see space_time_body.hpp)
+  float tgmppi_spacetime_blob_gate{0.2f};           // m; extras only when the moving obstacles make the
+                                                     // best space-time route at least this much more
+                                                     // expensive than in an obstacle-free flood (the
+                                                     // blob's analogue of a genuine predicted crossing)
   float tgmppi_spacetime_blob_max_regret{1.0f};     // m; an alternative homotopy class is kept
                                                      // only if within this of the best route
   bool tgmppi_debug{false};           // publish /tgmppi_debug markers (scan rays + wrap arrows)
