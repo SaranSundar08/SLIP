@@ -19,7 +19,7 @@ void DynamicObstacleCritic::initialize()
   getParam(params_.disc_radius, "disc_radius", 0.40f);
   getParam(params_.max_prediction_time, "max_prediction_time", 10.0f);
   int point_step = 1;
-  getParam(point_step, "trajectory_point_step", 1);
+  getParam(point_step, "trajectory_point_step", 1, ParameterType::Static);
   params_.point_step = static_cast<std::size_t>(std::max(1, point_step));
   getParam(cull_distance_, "cull_distance", 4.0f);
 
@@ -43,6 +43,14 @@ void DynamicObstacleCritic::score(CriticData & data)
     return;
   }
 
+  // Give the optimizer the exact settings used below for its final command
+  // veto. This prevents a second, subtly different collision model.
+  params_.model_dt = data.model_dt;
+  data.dynamic_obstacle_params = params_;
+  if (data.dynamic_collision_rows != nullptr) {
+    data.dynamic_collision_rows->assign(K, 0u);
+  }
+
   // Obstacles that cannot reach any rollout within the horizon are skipped.
   const float rx = static_cast<float>(data.state.pose.pose.position.x);
   const float ry = static_cast<float>(data.state.pose.pose.position.y);
@@ -57,7 +65,6 @@ void DynamicObstacleCritic::score(CriticData & data)
     return;
   }
 
-  params_.model_dt = data.model_dt;
   auto cost = xt::xtensor<float, 1>::from_shape({K});
   const float * xs = traj.x.data();
   const float * ys = traj.y.data();
@@ -65,6 +72,9 @@ void DynamicObstacleCritic::score(CriticData & data)
   for (std::size_t i = 0; i < K; ++i) {
     const auto r = scoreRolloutAgainstPredictions(
       xs + i * T, ys + i * T, yaws + i * T, T, nearby, params_);
+    if (r.collides && data.dynamic_collision_rows != nullptr) {
+      (*data.dynamic_collision_rows)[i] = 1u;
+    }
     cost(i) = r.collides ?
       params_.collision_cost + params_.penetration_cost * r.penetration :
       r.repulsive;

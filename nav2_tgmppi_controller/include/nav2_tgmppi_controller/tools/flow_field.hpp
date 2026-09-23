@@ -31,9 +31,9 @@ namespace tgmppi
  * the robot-passable free space of the LOCAL costmap (the tgmppi body -- the
  * rolling window IS the finite sensing diameter). Free = cost below
  * INSCRIBED_INFLATED_OBSTACLE, so the inflation layer's footprint inflation
- * gives the wet/dry gap classification: water only flows through gaps the
- * robot actually fits in, and every wet cell has a strictly-downhill
- * neighbor (no local minima inside the window by construction).
+ * provides a clearance proxy rather than an oriented polygon guarantee.
+ * Diagonal transitions require both adjacent cardinal cells to be free.
+ * Ancillary rollout validation separately checks the oriented footprint.
  *
  * Boundary condition when the plan's last transformed point sits at the
  * window edge (goal beyond the window): every free boundary cell is seeded
@@ -60,11 +60,17 @@ public:
    * more freely where there is space": levels prefer wide channels and
    * center in them, while narrow-but-necessary gaps still flood. 0 recovers
    * the pure-geodesic flood. Sandbox-validated ~1.5 for windowed fields.
+   * @param max_pseudopods Cap on spatially-distinct membrane exits kept per
+   * flood (legacy default 3, matching the sandbox). Each accepted pseudopod
+   * becomes its own MPPI sample group + ancillary rollout + collision check,
+   * so raising this trades real-time headroom for more simultaneously-
+   * representable route alternatives -- not yet validated at values > 3.
    */
   void build(
     const nav2_costmap_2d::Costmap2D & costmap,
     const models::Path & path, bool path_seed, float viscosity,
-    float robot_x, float robot_y, float body_radius);
+    float robot_x, float robot_y, float body_radius,
+    std::size_t max_pseudopods = 3);
 
   bool ready() const {return ready_;}
 

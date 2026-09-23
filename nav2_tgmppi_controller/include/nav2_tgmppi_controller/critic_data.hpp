@@ -16,6 +16,8 @@
 #define NAV2_TGMPPI_CONTROLLER__CRITIC_DATA_HPP_
 
 #include <memory>
+#include <optional>
+#include <cstdint>
 #include <vector>
 #include <xtensor/xtensor.hpp>
 
@@ -26,6 +28,7 @@
 #include "nav2_tgmppi_controller/models/path.hpp"
 #include "nav2_tgmppi_controller/motion_models.hpp"
 #include "nav2_tgmppi_controller/tools/space_time_search.hpp"
+#include "nav2_tgmppi_controller/tools/dynamic_obstacle_cost.hpp"
 
 
 namespace tgmppi
@@ -79,6 +82,17 @@ struct CriticData
   // once per cycle in Optimizer::prepare(). nullptr when none have been
   // received. DynamicObstacleCritic scores rollouts against their predictions.
   const std::vector<SpaceTimeObstacle> * tracked_obstacles{nullptr};
+
+  // Per-rollout contact result produced by DynamicObstacleCritic.  Costs alone
+  // cannot represent infeasibility: grouped MPPI normalizes each mode locally,
+  // so an all-colliding mode would otherwise still have a valid softmax.
+  // The optimizer owns this buffer and resets it before every critic pass.
+  std::vector<uint8_t> * dynamic_collision_rows{nullptr};
+
+  // Exact geometry and prediction settings used by DynamicObstacleCritic this
+  // cycle. The optimizer uses this only for the final post-smoothing veto, so
+  // the command check cannot silently diverge from the rollout critic.
+  std::optional<DynamicObstacleCostParams> dynamic_obstacle_params;
 };
 
 }  // namespace tgmppi

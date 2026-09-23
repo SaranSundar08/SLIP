@@ -190,6 +190,16 @@ protected:
    */
   void applyFlowBias();
 
+  /** @brief Forget the previous sampling iteration's ancillary row allocation. */
+  void clearAncillaryModeState();
+
+  /** @brief Allocate validated proposals and shift their rows' sampling means. */
+  void allocateModeSamples(
+    const std::vector<std::vector<float>> & mode_v,
+    const std::vector<std::vector<float>> & mode_w,
+    const std::vector<bool> & mode_valid,
+    const std::vector<float> & promises, float fraction);
+
   /** @brief Add a constant global-path rejoin prior to each pseudopod row group. */
   void applyTgMppiModePriors();
 
@@ -264,6 +274,15 @@ protected:
    */
   void updateControlSequence();
 
+  /** @brief Reject dynamically colliding rows; return true when none is safe. */
+  bool enforceDynamicCollisionSafety();
+
+  /** @brief Check the final smoothed sequence with DynamicObstacleCritic geometry. */
+  bool finalSequenceIsDynamicallySafe();
+
+  /** @brief Clear the command and its smoother/mode state after a safety veto. */
+  void stopForDynamicSafety(const char * reason);
+
   /**
    * @brief Convert control sequence to a twist commant
    * @param stamp Timestamp to use
@@ -317,13 +336,10 @@ protected:
 #endif
   rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr
     tgmppi_debug_pub_;
-  // 3 ordinary pseudopod slots + up to 2 amoeba_sandbox spacetime.py
-  // Phase 1 extra modes ("wait"/"detour" past a moving obstacle, see
-  // trySpacetimeAlternatives()) -- slots 3/4 stay valid=false (empty
-  // published paths, no row allocation) whenever tgmppi_spacetime_enabled
-  // is false or no crossing is detected, so this is a strict superset of
-  // the pre-Phase-1 behavior at those indices.
-  static constexpr std::size_t kMaxAncillaryModes = 5;
+  // Five tracked pseudopods plus up to two space-time alternatives.
+  // Keep row bookkeeping and publishers large enough for every proposal.
+  static constexpr std::size_t kPodSlots = 5;
+  static constexpr std::size_t kMaxAncillaryModes = kPodSlots + 2;
   std::array<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr,
     kMaxAncillaryModes> ancillary_path_pubs_;
   std::array<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr,
@@ -344,7 +360,12 @@ protected:
   // pseudopod id (or the slot index when tracking is off), spacetime extras
   // kSpacetimeKeyBase+slot, the wait block kWaitModeKey, the unbiased
   // remainder kFallbackModeKey (sandbox key -1 = path fallback).
-  static constexpr std::size_t kPodSlots = 3;
+  // 2026-09-22: raised from 3 to test flow_max_pseudopods > 3 in Gazebo.
+  // pod_slot_ids_/st_slot_ids_ are reset via .fill(-1) in reset() (never a
+  // hardcoded {-1,-1,-1}-style literal) so this scales safely on its own --
+  // see reset() and the two new_slots assignments in trackPseudopods() /
+  // trackSpacetimeRoutes()-equivalent for the sentinel-fill pattern this
+  // constant depends on.
   static constexpr int kNoModeKey = std::numeric_limits<int>::min();
   static constexpr int kFallbackModeKey = -1;
   static constexpr int kWaitModeKey = -2;
@@ -356,7 +377,9 @@ protected:
     float promise;
   };
   std::vector<TrackedPod> tracked_pods_prev_;
-  std::array<int, kPodSlots> pod_slot_ids_{{-1, -1, -1}};
+  // Sentinel-filled in reset(), not here -- a hardcoded {-1,-1,-1} literal
+  // silently zero-pads instead of erroring when kPodSlots != 3.
+  std::array<int, kPodSlots> pod_slot_ids_{};
   int next_pod_id_{0};
   // Slot-ordered pseudopods actually used for ancillary modes + publishing:
   // == flow_field_.pseudopods() when tracking is off; with tracking on, a
@@ -433,7 +456,8 @@ protected:
     float promise;
   };
   std::vector<StTrackedPod> st_tracked_prev_;
-  std::array<int, kPodSlots> st_slot_ids_{{-1, -1, -1}};
+  // Sentinel-filled in reset(), not here -- see pod_slot_ids_ above.
+  std::array<int, kPodSlots> st_slot_ids_{};
   int next_st_id_{0};
   unsigned int st_unfollowable_count_{0u};   // routes rejected as unfollowable (log counter)
   bool st_pods_active_{false};   // gate state with hysteresis, persists across cycles
@@ -449,8 +473,13 @@ protected:
   ancillary_collision_checker_{nullptr};
   std::array<tgmppi::models::Control, 4> control_history_;
   models::Trajectories generated_trajectories_;
+  // Reused one-rollout buffers for the post-smoothing dynamic collision veto.
+  // Allocated only in reset(), never in the controller hot path.
+  models::State final_safety_state_;
+  models::Trajectories final_safety_trajectory_;
   models::Path path_;
   xt::xtensor<float, 1> costs_;
+  std::vector<uint8_t> dynamic_collision_rows_;
 
   CriticData critics_data_ =
   {state_, generated_trajectories_, path_, costs_, settings_.model_dt, false, nullptr, nullptr,
@@ -460,6 +489,7 @@ protected:
 #else
     nullptr
 #endif
+    , nullptr, &dynamic_collision_rows_, std::nullopt
   };  /// Caution, keep references
 
   rclcpp::Logger logger_{rclcpp::get_logger("TgMppiController")};

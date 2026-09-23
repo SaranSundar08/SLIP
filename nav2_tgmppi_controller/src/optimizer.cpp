@@ -205,6 +205,14 @@ void Optimizer::getParams()
   getParam(s.flow_path_seed, "flow_path_seed", true);
   getParam(s.flow_viscosity, "flow_viscosity", 1.5f);
   getParam(s.flow_promise_temperature, "flow_promise_temperature", 0.75f);
+  getParam(s.flow_max_pseudopods, "flow_max_pseudopods", 3);
+  // Clamped to kPodSlots (now 5, 2026-09-22): pod_slot_ids_/st_slot_ids_ are
+  // fixed-size std::array<int, kPodSlots> for cross-cycle identity tracking,
+  // so a flood returning more pseudopods than that would index out of
+  // bounds. Both arrays are sentinel-filled via .fill(-1) in reset()/the two
+  // new_slots assignments, not a hardcoded literal, so kPodSlots is safe to
+  // raise further later without repeating this exercise.
+  s.flow_max_pseudopods = std::min(s.flow_max_pseudopods, static_cast<int>(kPodSlots));
   getParam(s.ancillary_collision_check, "ancillary_collision_check", true);
   getParam(s.ancillary_collision_stride, "ancillary_collision_stride", 1);
   getParam(
@@ -246,7 +254,7 @@ void Optimizer::getParams()
     s.flow_critic_enabled ? "enabled" : "disabled",
     s.ancillary_collision_check ? "enabled" : "disabled");
 
-  getParam(motion_model_name, "motion_model", std::string("DiffDrive"));
+  getParam(motion_model_name, "motion_model", std::string("DiffDrive"), ParameterType::Static);
 
   s.constraints = s.base_constraints;
   setMotionModel(motion_model_name);
@@ -312,6 +320,9 @@ void Optimizer::reset()
 
   costs_ = xt::zeros<float>({settings_.batch_size});
   generated_trajectories_.reset(settings_.batch_size, settings_.time_steps);
+  final_safety_state_.reset(1u, settings_.time_steps);
+  final_safety_trajectory_.reset(1u, settings_.time_steps);
+  dynamic_collision_rows_.assign(settings_.batch_size, 0u);
 
   noise_generator_.reset(settings_, isHolonomic());
 
@@ -392,6 +403,9 @@ geometry_msgs::msg::TwistStamped Optimizer::evalControl(
       }
       mode_nominals_.clear();
     }
+  }
+  if (!finalSequenceIsDynamicallySafe()) {
+    stopForDynamicSafety("smoothed command intersects a predicted obstacle");
   }
   auto control = getControlFromSequenceAsTwist(plan.header.stamp);
 
@@ -476,6 +490,9 @@ void Optimizer::optimize()
       break;
     }
 
+    if (enforceDynamicCollisionSafety()) {
+      return;
+    }
     updateControlSequence();
   }
 }
@@ -490,6 +507,8 @@ bool Optimizer::fallback(bool fail)
   }
 
   reset();
+  // A failed critic pass must not poison the next attempt in this cycle.
+  critics_data_.fail_flag = false;
 
   if (++counter > settings_.retry_attempt_limit) {
     counter = 0;
@@ -514,6 +533,8 @@ void Optimizer::prepare(
   critics_data_.motion_model = motion_model_;
   critics_data_.furthest_reached_path_point.reset();
   critics_data_.path_pts_valid.reset();
+  critics_data_.dynamic_obstacle_params.reset();
+  std::fill(dynamic_collision_rows_.begin(), dynamic_collision_rows_.end(), 0u);
   critics_data_.flow_field =
     (settings_.tgmppi_shadow_mode || !settings_.flow_critic_enabled) ?
     nullptr : &flow_field_;
@@ -543,8 +564,24 @@ void Optimizer::shiftControlSequence()
   }
 }
 
+void Optimizer::clearAncillaryModeState()
+{
+  ancillary_mode_valid_.fill(false);
+  ancillary_mode_samples_.fill(0u);
+  ancillary_mode_row_start_.fill(0u);
+  ancillary_mode_rejoin_prior_.fill(0.0f);
+  flow_wait_samples_ = 0u;
+  for (auto & rollout : ancillary_rollout_x_) {
+    rollout.clear();
+  }
+  for (auto & rollout : ancillary_rollout_y_) {
+    rollout.clear();
+  }
+}
+
 void Optimizer::generateNoisedTrajectories()
 {
+  clearAncillaryModeState();
   noise_generator_.setNoisedControls(state_, control_sequence_);
   noise_generator_.generateNextNoises();
   if (settings_.tgmppi_shadow_mode || !settings_.tgmppi_bias_enabled) {
@@ -555,7 +592,8 @@ void Optimizer::generateNoisedTrajectories()
       flow_field_.build(
         *costmap_, path_, s.flow_path_seed, s.flow_viscosity,
         static_cast<float>(state_.pose.pose.position.x),
-        static_cast<float>(state_.pose.pose.position.y), s.tgmppi_body_radius);
+        static_cast<float>(state_.pose.pose.position.y), s.tgmppi_body_radius,
+        static_cast<std::size_t>(std::max(1, s.flow_max_pseudopods)));
       trackPseudopods();
       if (s.tgmppi_ancillary_debug) {
         publishAncillaryPaths();
@@ -776,7 +814,8 @@ bool Optimizer::buildSpacetimePods(float rx, float ry)
 
   // Slot assignment, same rules as trackPseudopods(): an id keeps its slot, vanished ids free
   // theirs, new ids take the first free slot.
-  std::array<int, kPodSlots> new_slots{{-1, -1, -1}};
+  std::array<int, kPodSlots> new_slots;
+  new_slots.fill(-1);
   std::vector<bool> placed(tracked.size(), false);
   for (std::size_t m = 0; m < kPodSlots; ++m) {
     if (st_slot_ids_[m] < 0) {continue;}
@@ -1139,8 +1178,10 @@ void Optimizer::trackPseudopods()
 
   // Slot assignment: an id that already owns a slot keeps it; ids that
   // vanished free their slot; new ids take the first free slot (there are
-  // never more than kPodSlots pseudopods, the flood extracts <= 3).
-  std::array<int, kPodSlots> new_slots{{-1, -1, -1}};
+  // never more than kPodSlots pseudopods -- the flood is capped by
+  // flow_max_pseudopods, itself clamped to kPodSlots in getParams()).
+  std::array<int, kPodSlots> new_slots;
+  new_slots.fill(-1);
   std::vector<bool> placed(tracked.size(), false);
   for (std::size_t m = 0; m < kPodSlots; ++m) {
     if (pod_slot_ids_[m] < 0) {continue;}
@@ -1187,7 +1228,8 @@ void Optimizer::applyFlowBias()
     flow_field_.build(
       *costmap_, path_, s.flow_path_seed, s.flow_viscosity,
       static_cast<float>(state_.pose.pose.position.x),
-      static_cast<float>(state_.pose.pose.position.y), s.tgmppi_body_radius);
+      static_cast<float>(state_.pose.pose.position.y), s.tgmppi_body_radius,
+      static_cast<std::size_t>(std::max(1, s.flow_max_pseudopods)));
     trackPseudopods();
     if (s.tgmppi_ancillary_debug) {
       publishAncillaryPaths();
@@ -1290,17 +1332,6 @@ void Optimizer::applyFlowBias()
   std::vector<std::vector<float>> mode_x(mode_count);
   std::vector<std::vector<float>> mode_y(mode_count);
   std::vector<bool> mode_valid(mode_count, true);
-  ancillary_mode_valid_.fill(false);
-  ancillary_mode_samples_.fill(0u);
-  ancillary_mode_row_start_.fill(0u);
-  ancillary_mode_rejoin_prior_.fill(0.0f);
-  flow_wait_samples_ = 0u;
-  for (auto & rollout : ancillary_rollout_x_) {
-    rollout.clear();
-  }
-  for (auto & rollout : ancillary_rollout_y_) {
-    rollout.clear();
-  }
   const auto & footprint = costmap_ros_->getRobotFootprint();
   const bool tracking_unknown = costmap_ros_->getLayeredCostmap()->isTrackingUnknown();
   const unsigned int collision_stride =
@@ -1567,6 +1598,17 @@ void Optimizer::applyFlowBias()
     ancillary_mode_key_[m] = kSpacetimeKeyBase + static_cast<int>(m);
   }
 
+  allocateModeSamples(mode_v, mode_w, mode_valid, promises_local, frac);
+}
+
+void Optimizer::allocateModeSamples(
+  const std::vector<std::vector<float>> & mode_v,
+  const std::vector<std::vector<float>> & mode_w,
+  const std::vector<bool> & mode_valid,
+  const std::vector<float> & promises_local, float frac)
+{
+  const auto & s = settings_;
+  const bool equal_allocation = s.tgmppi_group_allocation == "equal";
   std::vector<std::size_t> active_modes;
   active_modes.reserve(mode_v.size());
   for (std::size_t m = 0; m < mode_v.size(); ++m) {
@@ -1585,7 +1627,12 @@ void Optimizer::applyFlowBias()
       static_cast<unsigned int>(active_modes.size()) + (offer_wait ? 1u : 0u) + 1u;
     const unsigned int share = s.batch_size / n_groups;
     n_biased = static_cast<unsigned int>(frac * static_cast<float>(s.batch_size - share));
-    n_wait = offer_wait ? static_cast<unsigned int>(frac * static_cast<float>(share)) : 0u;
+    // Distribute the integer remainder in mode order, then wait, then fallback.
+    // With fewer rows than groups, wait may receive a remainder row even when
+    // share is zero. The assist ramp still returns unused rows to fallback.
+    const unsigned int wait_share = share +
+      (s.batch_size % n_groups > active_modes.size() ? 1u : 0u);
+    n_wait = offer_wait ? static_cast<unsigned int>(frac * static_cast<float>(wait_share)) : 0u;
     n_wait = std::min(n_wait, n_biased);
   } else {
     n_biased = std::min(
@@ -1625,14 +1672,22 @@ void Optimizer::applyFlowBias()
     const std::size_t m = active_modes[i];
     const unsigned int modes_left = static_cast<unsigned int>(active_modes.size() - i);
     const unsigned int rows_left = pod_budget - row;
-    unsigned int count = (i + 1 == active_modes.size()) ? rows_left :
-      static_cast<unsigned int>(std::lround(
-        static_cast<float>(pod_budget) * weights[i] / weight_sum));
-    if (pod_budget >= active_modes.size()) {
-      count = std::max(1u, count);
-      count = std::min(count, rows_left - (modes_left - 1));
+    unsigned int count;
+    if (equal_allocation) {
+      // Round the partition once, not every mode independently: otherwise
+      // the final mode absorbs all rounding error (e.g. 25/7 -> 4,4,4,4,4,4,1).
+      const unsigned int n_modes = static_cast<unsigned int>(active_modes.size());
+      count = pod_budget / n_modes + (i < pod_budget % n_modes ? 1u : 0u);
     } else {
-      count = std::min(count, rows_left);
+      count = (i + 1 == active_modes.size()) ? rows_left :
+        static_cast<unsigned int>(std::lround(
+          static_cast<float>(pod_budget) * weights[i] / weight_sum));
+      if (pod_budget >= active_modes.size()) {
+        count = std::max(1u, count);
+        count = std::min(count, rows_left - (modes_left - 1));
+      } else {
+        count = std::min(count, rows_left);
+      }
     }
     const unsigned int end = row + count;
     if (m < ancillary_mode_row_start_.size()) {ancillary_mode_row_start_[m] = row;}
@@ -2279,8 +2334,30 @@ void Optimizer::updateControlSequence()
     float best_free_energy = std::numeric_limits<float>::max();
     std::size_t best_group = 0;
     std::vector<xt::xtensor<float, 1>> group_softmax(groups.size());
-    std::vector<float> group_free_energy(groups.size(), 0.0f);
+    std::vector<float> group_free_energy(
+      groups.size(), std::numeric_limits<float>::max());
+    std::vector<bool> group_has_safe_row(groups.size(), true);
+    const bool dynamic_safety_active =
+      critics_data_.dynamic_obstacle_params.has_value() &&
+      !tracked_obstacles_snapshot_.empty() &&
+      dynamic_collision_rows_.size() == s.batch_size;
     for (std::size_t g = 0; g < groups.size(); ++g) {
+      if (dynamic_safety_active) {
+        group_has_safe_row[g] = false;
+        for (unsigned int r = groups[g].start; r < groups[g].start + groups[g].count; ++r) {
+          if (dynamic_collision_rows_[r] == 0u) {
+            group_has_safe_row[g] = true;
+            break;
+          }
+        }
+      }
+      if (!group_has_safe_row[g]) {
+        // A local softmax always sums to one, even when every row in this
+        // mode collides.  Mark the mode unavailable instead of allowing the
+        // least-bad collision to win its own free-energy comparison.
+        group_softmax[g] = xt::zeros<float>({groups[g].count});
+        continue;
+      }
       auto && group_costs = xt::eval(
         xt::view(costs_, xt::range(groups[g].start, groups[g].start + groups[g].count)));
       const float cmin = xt::amin(group_costs, immediate)();
@@ -2304,6 +2381,9 @@ void Optimizer::updateControlSequence()
     std::size_t current_group = kNoGroup;
     for (std::size_t g = 0; g < groups.size(); ++g) {
       if (groups[g].key == selected_mode_key_) {current_group = g; break;}
+    }
+    if (current_group != kNoGroup && !group_has_safe_row[current_group]) {
+      current_group = kNoGroup;
     }
     std::size_t chosen_group = best_group;
     const char * reason = "best";
@@ -2368,6 +2448,7 @@ void Optimizer::updateControlSequence()
     if (s.tgmppi_mode_warm_start > 0.0f) {
       std::map<int, std::pair<std::vector<float>, std::vector<float>>> fresh;
       for (std::size_t g = 0; g < groups.size(); ++g) {
+        if (!group_has_safe_row[g]) {continue;}
         const unsigned int g0 = groups[g].start;
         const unsigned int g1 = groups[g].start + groups[g].count;
         auto && sm = xt::eval(xt::view(group_softmax[g], xt::all(), xt::newaxis()));
@@ -2423,6 +2504,99 @@ void Optimizer::updateControlSequence()
   }
 
   applyControlSequenceConstraints();
+}
+
+bool Optimizer::enforceDynamicCollisionSafety()
+{
+  // DynamicObstacleCritic is optional.  Its per-row contact flags only have
+  // safety meaning when it ran this iteration against this cycle's snapshot.
+  if (!critics_data_.dynamic_obstacle_params.has_value() ||
+    tracked_obstacles_snapshot_.empty() ||
+    dynamic_collision_rows_.size() != settings_.batch_size)
+  {
+    return false;
+  }
+
+  std::size_t safe_rows = 0u;
+  float worst_safe_cost = 0.0f;
+  for (unsigned int r = 0; r < settings_.batch_size; ++r) {
+    if (dynamic_collision_rows_[r] != 0u) {continue;}
+    ++safe_rows;
+    if (!utils::isBadFloat(costs_(r))) {
+      worst_safe_cost = std::max(worst_safe_cost, costs_(r));
+    }
+  }
+  if (safe_rows == 0u) {
+    stopForDynamicSafety("every sampled rollout intersects a predicted obstacle");
+    return true;
+  }
+
+  // A finite collision penalty is necessary for critic diagnostics, but it is
+  // not an infeasibility constraint: an all-colliding grouped mode normalizes
+  // its own local softmax.  Put colliding rows beyond every safe row before
+  // either grouped or ordinary MPPI forms a softmax.  Grouped MPPI separately
+  // excludes an all-colliding group below.
+  const float unsafe_cost = std::min(
+    1.0e11f, std::max(1.0e6f, worst_safe_cost + 1.0e6f));
+  for (unsigned int r = 0; r < settings_.batch_size; ++r) {
+    if (dynamic_collision_rows_[r] != 0u) {
+      costs_(r) = unsafe_cost;
+    }
+  }
+  return false;
+}
+
+bool Optimizer::finalSequenceIsDynamicallySafe()
+{
+  if (!critics_data_.dynamic_obstacle_params.has_value() ||
+    tracked_obstacles_snapshot_.empty())
+  {
+    return true;
+  }
+  if (final_safety_state_.cvx.shape(0) != 1u ||
+    final_safety_state_.cvx.shape(1) != settings_.time_steps ||
+    final_safety_trajectory_.x.shape(0) != 1u ||
+    final_safety_trajectory_.x.shape(1) != settings_.time_steps)
+  {
+    // This should only be possible after an invalid dynamic parameter update.
+    // Treat an unavailable safety buffer as unsafe rather than publishing an
+    // unchecked command.
+    return false;
+  }
+
+  final_safety_state_.pose = state_.pose;
+  final_safety_state_.speed = state_.speed;
+  xt::noalias(xt::view(final_safety_state_.cvx, 0, xt::all())) = control_sequence_.vx;
+  xt::noalias(xt::view(final_safety_state_.cwz, 0, xt::all())) = control_sequence_.wz;
+  if (isHolonomic()) {
+    xt::noalias(xt::view(final_safety_state_.cvy, 0, xt::all())) = control_sequence_.vy;
+  }
+  updateStateVelocities(final_safety_state_);
+  integrateStateVelocities(final_safety_trajectory_, final_safety_state_);
+
+  const auto & p = *critics_data_.dynamic_obstacle_params;
+  const auto r = scoreRolloutAgainstPredictions(
+    final_safety_trajectory_.x.data(), final_safety_trajectory_.y.data(),
+    final_safety_trajectory_.yaws.data(), settings_.time_steps,
+    tracked_obstacles_snapshot_, p);
+  return !r.collides;
+}
+
+void Optimizer::stopForDynamicSafety(const char * reason)
+{
+  static unsigned int dynamic_stop_logs = 0u;
+  if (dynamic_stop_logs++ < 20u) {
+    RCLCPP_WARN(logger_, "[TG-MPPI safety] stopping: %s", reason);
+  }
+  control_sequence_.reset(settings_.time_steps);
+  for (auto & h : control_history_) {
+    h = {0.0, 0.0, 0.0};
+  }
+  mode_nominals_.clear();
+  selected_mode_key_ = kNoModeKey;
+  selected_mode_age_ = 0u;
+  pending_mode_key_ = kNoModeKey;
+  pending_mode_count_ = 0u;
 }
 
 geometry_msgs::msg::TwistStamped Optimizer::getControlFromSequenceAsTwist(

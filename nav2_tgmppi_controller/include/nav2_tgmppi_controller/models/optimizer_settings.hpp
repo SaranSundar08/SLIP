@@ -218,6 +218,12 @@ struct OptimizerSettings
                                       // channels flow freely, pinches drag
   float flow_promise_temperature{0.75f};  // softmax temperature (m) used to
                                           // allocate samples among pseudopods
+  // Cap on spatially-distinct pseudopod exits kept per flood (2026-09-22).
+  // Legacy/sandbox default 3. Each accepted pseudopod is its own MPPI sample
+  // group + ancillary rollout + collision check, so raising this trades
+  // real-time headroom for more simultaneously-representable route
+  // alternatives -- not yet validated above 3 in a real run.
+  int flow_max_pseudopods{3};
   bool ancillary_collision_check{true};   // validate ancillary mean rollouts with the robot footprint
   int ancillary_collision_stride{1};      // footprint-check every Nth horizon pose (1 = every pose)
   bool flow_assist_only_when_path_blocked{true};  // preserve the global path in NORMAL mode

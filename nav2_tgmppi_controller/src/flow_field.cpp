@@ -43,7 +43,8 @@ constexpr int kOff[8][2] =
 void FlowField::build(
   const nav2_costmap_2d::Costmap2D & costmap,
   const models::Path & path, bool path_seed, float viscosity,
-  float robot_x, float robot_y, float body_radius)
+  float robot_x, float robot_y, float body_radius,
+  std::size_t max_pseudopods)
 {
   const auto t0 = std::chrono::steady_clock::now();
   ready_ = false;
@@ -66,7 +67,7 @@ void FlowField::build(
 
   // Wet/dry classification straight off the inflated costmap: the inflation
   // layer already grew obstacles by the footprint's inscribed radius, so
-  // "below inscribed cost" == "robot center fits here". Unknown = free,
+  // this is a centre-cell clearance proxy, not an oriented polygon test. Unknown = free,
   // matching the optimistic convention of the rest of this controller.
   free_.assign(n, 0);
   visc_.assign(n, 1.0f);
@@ -82,6 +83,15 @@ void FlowField::build(
       free_[k] = 1;  // unknown = free, resistance 1
     }
   }
+
+  // One connectivity rule for body reachability, membrane adjacency, the
+  // distance flood and direction lookup. A diagonal needs both side cells
+  // free; checking only its destination lets paths squeeze through corners.
+  const auto can_step = [this](int i, int j, int ni, int nj) {
+      if (ni < 0 || ni >= nx_ || nj < 0 || nj >= ny_) {return false;}
+      return free_[idx(ni, nj)] &&
+             (i == ni || j == nj || (free_[idx(ni, j)] && free_[idx(i, nj)]));
+    };
 
   using QItem = std::pair<float, int>;
 
@@ -122,7 +132,7 @@ void FlowField::build(
     for (int o = 0; o < 8; ++o) {
       const int ni = i + kOff[o][0];
       const int nj = j + kOff[o][1];
-      if (ni < 0 || ni >= nx_ || nj < 0 || nj >= ny_) {continue;}
+      if (!can_step(i, j, ni, nj)) {continue;}
       const int nk = idx(ni, nj);
       if (!free_[nk]) {continue;}
       const float step =
@@ -148,9 +158,9 @@ void FlowField::build(
       for (int o = 0; o < 8 && !outer; ++o) {
         const int ni = i + kOff[o][0];
         const int nj = j + kOff[o][1];
-        if (ni < 0 || ni >= nx_ || nj < 0 || nj >= ny_) {continue;}
+        if (!can_step(i, j, ni, nj)) {continue;}
         const int nk = idx(ni, nj);
-        outer = free_[nk] && !body_[nk];
+        outer = !body_[nk];
       }
       if (outer) {
         membrane_[k] = 1;
@@ -272,7 +282,7 @@ void FlowField::build(
         pseudopods_.push_back(std::move(pod));
         pseudopod_promises_.push_back(candidate.first);
       }
-      if (pseudopods_.size() >= 3) {break;}
+      if (pseudopods_.size() >= max_pseudopods) {break;}
     }
   }
 
@@ -286,7 +296,7 @@ void FlowField::build(
     for (int o = 0; o < 8; ++o) {
       const int ni = i + kOff[o][0];
       const int nj = j + kOff[o][1];
-      if (ni < 0 || ni >= nx_ || nj < 0 || nj >= ny_) {continue;}
+      if (!can_step(i, j, ni, nj)) {continue;}
       const int nk = idx(ni, nj);
       if (!body_[nk]) {continue;}
       const float w =
@@ -311,7 +321,7 @@ void FlowField::build(
       for (int o = 0; o < 8; ++o) {
         const int ni = i + kOff[o][0];
         const int nj = j + kOff[o][1];
-        if (ni < 0 || ni >= nx_ || nj < 0 || nj >= ny_) {continue;}
+        if (!can_step(i, j, ni, nj)) {continue;}
         const float dn = D_[idx(ni, nj)];
         if (dn < best) {best = dn; bo = o;}
       }
