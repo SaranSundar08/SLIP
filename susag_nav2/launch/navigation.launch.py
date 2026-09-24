@@ -47,8 +47,8 @@ GT_LOCALIZER = '/home/saran/robohouse_ws/src/susag_nav2/scripts/ground_truth_loc
 # /front_scan_filtered, (2) removes the depth-camera STVL layers (they would mark
 # the obstacles too), and (3) sets flow_assist_only_when_path_blocked: false so
 # TG-MPPI's branch / space-time modes exist every cycle (T-MPC runs guidance every
-# cycle). Default false: every other launch is unchanged. TG-MPPI params only --
-# ignored for the stock Nav2 MPPI baseline, which always runs unmodified.
+# cycle). Default false: every other launch is unchanged. Plain MPPI uses the
+# same odometry topics and DynamicObstacleCritic when this option is enabled.
 SCAN_FILTER = '/home/saran/robohouse_ws/src/susag_nav2/scripts/tracked_obstacle_scan_filter.py'
 TRACKING_NOISE = '/home/saran/robohouse_ws/src/susag_nav2/scripts/obstacle_tracking_noise.py'
 
@@ -81,10 +81,24 @@ ABLATIONS = {
 }
 
 
+def follow_path_params(data):
+    """Return the controller's FollowPath parameters, if present."""
+    return (data.get('controller_server', {}).get('ros__parameters', {})
+            .get('FollowPath', {}))
+
+
+def write_params(data, suffix):
+    """Write edited Nav2 parameters to a temporary YAML file."""
+    out = tempfile.NamedTemporaryFile(mode='w', suffix=suffix, delete=False)
+    yaml.safe_dump(data, out)
+    out.close()
+    return out.name
+
+
 def ablation_params(src_path, condition):
     with open(src_path) as f:
         data = yaml.safe_load(f)
-    fp = data.get('controller_server', {}).get('ros__parameters', {}).get('FollowPath', {})
+    fp = follow_path_params(data)
     changes = []
     for key, value in ABLATIONS[condition].items():
         if key in fp and fp[key] != value:
@@ -92,25 +106,20 @@ def ablation_params(src_path, condition):
             changes.append('%s -> %s' % (key, value))
     if not changes:
         return src_path, []
-    out = tempfile.NamedTemporaryFile(mode='w', suffix='_ablation.yaml', delete=False)
-    yaml.safe_dump(data, out)
-    out.close()
-    return out.name, changes
+    return write_params(data, '_ablation.yaml'), changes
 
 
 def group_allocation_params(src_path, mode):
     """Set TG-MPPI's tgmppi_group_allocation (legacy|equal); no-op on the baseline."""
     with open(src_path) as f:
         data = yaml.safe_load(f)
-    fp = data.get('controller_server', {}).get('ros__parameters', {}).get('FollowPath', {})
+    fp = follow_path_params(data)
     if 'tgmppi_group_allocation' not in fp or fp['tgmppi_group_allocation'] == mode:
         return src_path, []
     previous = fp['tgmppi_group_allocation']
     fp['tgmppi_group_allocation'] = mode
-    out = tempfile.NamedTemporaryFile(mode='w', suffix='_allocation.yaml', delete=False)
-    yaml.safe_dump(data, out)
-    out.close()
-    return out.name, ['tgmppi_group_allocation %s -> %s' % (previous, mode)]
+    return write_params(data, '_allocation.yaml'), [
+        'tgmppi_group_allocation %s -> %s' % (previous, mode)]
 
 
 def spacetime_blob_params(src_path, mode):
@@ -120,7 +129,7 @@ def spacetime_blob_params(src_path, mode):
     (phase 2). No-op on the baseline (no TG-MPPI FollowPath params) or when nothing changes."""
     with open(src_path) as f:
         data = yaml.safe_load(f)
-    fp = data.get('controller_server', {}).get('ros__parameters', {}).get('FollowPath', {})
+    fp = follow_path_params(data)
     if 'tgmppi_group_allocation' not in fp:   # not a TG-MPPI params file
         return src_path, []
     want = {'tgmppi_spacetime_blob': mode in ('true', 'pods'),
@@ -133,10 +142,7 @@ def spacetime_blob_params(src_path, mode):
             changes.append('%s %s -> %s' % (key, previous, value))
     if not changes:
         return src_path, []
-    out = tempfile.NamedTemporaryFile(mode='w', suffix='_blob.yaml', delete=False)
-    yaml.safe_dump(data, out)
-    out.close()
-    return out.name, changes
+    return write_params(data, '_blob.yaml'), changes
 
 
 def backend_params(src_path, backend):
@@ -152,15 +158,13 @@ def backend_params(src_path, backend):
     """
     with open(src_path) as f:
         data = yaml.safe_load(f)
-    fp = data.get('controller_server', {}).get('ros__parameters', {}).get('FollowPath', {})
+    fp = follow_path_params(data)
     if 'compute_backend' not in fp or fp['compute_backend'] == backend:
         return src_path, []
     previous = fp['compute_backend']
     fp['compute_backend'] = backend
-    out = tempfile.NamedTemporaryFile(mode='w', suffix='_backend.yaml', delete=False)
-    yaml.safe_dump(data, out)
-    out.close()
-    return out.name, ['compute_backend %s -> %s' % (previous, backend)]
+    return write_params(data, '_backend.yaml'), [
+        'compute_backend %s -> %s' % (previous, backend)]
 
 
 def tracking_params(src_path):
@@ -168,16 +172,16 @@ def tracking_params(src_path):
     topics instead of ground truth."""
     with open(src_path) as f:
         data = yaml.safe_load(f)
-    fp = data.get('controller_server', {}).get('ros__parameters', {}).get('FollowPath', {})
-    topics = fp.get('tgmppi_spacetime_obstacle_topics')
+    fp = follow_path_params(data)
+    key = ('tgmppi_spacetime_obstacle_topics' if
+           'tgmppi_spacetime_obstacle_topics' in fp else 'obstacle_topics')
+    topics = fp.get(key)
     if not topics:
         return src_path, []
-    fp['tgmppi_spacetime_obstacle_topics'] = [
+    fp[key] = [
         t.replace('/ground_truth/odom', '/tracked/odom') for t in topics]
-    out = tempfile.NamedTemporaryFile(mode='w', suffix='_tracking.yaml', delete=False)
-    yaml.safe_dump(data, out)
-    out.close()
-    return out.name, ['%d obstacle topic(s) -> /tracked/odom' % len(topics)]
+    return write_params(data, '_tracking.yaml'), [
+        '%d obstacle topic(s) -> /tracked/odom' % len(topics)]
 
 
 def dynamic_obstacle_params(src_path):
@@ -195,14 +199,25 @@ def dynamic_obstacle_params(src_path):
         if isinstance(front, dict) and front.get('topic') != '/front_scan_filtered':
             front['topic'] = '/front_scan_filtered'
             changes.append(f'{cm}: obstacle_layer front_scan -> /front_scan_filtered')
-    follow = data.get('controller_server', {}).get('ros__parameters', {}).get('FollowPath', {})
-    if follow.get('flow_assist_only_when_path_blocked') is True:
-        follow['flow_assist_only_when_path_blocked'] = False
-        changes.append('FollowPath: flow_assist_only_when_path_blocked -> false')
-    out = tempfile.NamedTemporaryFile(mode='w', suffix='_dynamic_obstacles.yaml', delete=False)
-    yaml.safe_dump(data, out)
-    out.close()
-    return out.name, changes
+    follow = follow_path_params(data)
+    is_tgmppi = 'TgMppiController' in str(follow.get('plugin', ''))
+    if is_tgmppi:
+        follow['tgmppi_require_obstacle_tracking'] = True
+        if follow.get('flow_assist_only_when_path_blocked') is True:
+            follow['flow_assist_only_when_path_blocked'] = False
+            changes.append('FollowPath: flow_assist_only_when_path_blocked -> false')
+    else:
+        topics = follow.get('obstacle_topics', [])
+        if not topics:
+            raise ValueError(
+                'dynamic_obstacles:=true requires FollowPath.obstacle_topics in the MPPI YAML')
+        follow['require_obstacle_tracking'] = True
+        critics = follow.setdefault('critics', [])
+        if 'DynamicObstacleCritic' not in critics:
+            insert_at = critics.index('CostCritic') + 1 if 'CostCritic' in critics else len(critics)
+            critics.insert(insert_at, 'DynamicObstacleCritic')
+        changes.append('FollowPath: enabled DynamicObstacleCritic and required live tracking')
+    return write_params(data, '_dynamic_obstacles.yaml'), changes
 
 
 # max_speed:=<m/s> (2026-09-16): raising vx_max alone is not enough. The MPPI
@@ -213,11 +228,11 @@ def dynamic_obstacle_params(src_path):
 # (vx_max was bumped 0.35 -> 0.5 on 2026-09-14 without these and had to be
 # reverted.) Applies to BOTH controllers -- a vehicle speed limit is shared
 # environment, not a method change -- unlike dynamic_obstacles below.
-def speed_params(src_path, vmax):
+def speed_params(src_path, vmax, obstacle_vmax=1.0):
     """Return (new_params_path, changes) with vx_max and everything that scales with it."""
     with open(src_path) as f:
         data = yaml.safe_load(f)
-    fp = data.get('controller_server', {}).get('ros__parameters', {}).get('FollowPath', {})
+    fp = follow_path_params(data)
     if not fp:
         return src_path, []
     changes = []
@@ -271,12 +286,14 @@ def speed_params(src_path, vmax):
         changes.append('tgmppi_body_radius %.2f m' % fp['tgmppi_body_radius'])
     doc = fp.get('DynamicObstacleCritic')
     if isinstance(doc, dict):
-        doc['cull_distance'] = round((vmax + 1.0) * horizon + 0.9, 1)
+        doc['cull_distance'] = round((vmax + obstacle_vmax) * horizon + 0.9, 1)
         # Check spacing must stay well inside an obstacle radius, or a crossing
         # obstacle passes BETWEEN two checked rollout points: at 1.5 m/s robot +
         # 1.0 m/s obstacle, point_step 3 spaced the checks 0.375 m apart against
-        # a 0.25 m obstacle (collisions observed 2026-09-16).
-        v_rel = vmax + 1.0
+        # a 0.25 m obstacle (collisions observed 2026-09-16). obstacle_vmax must
+        # match the world's actual max obstacle speed or this margin is wrong
+        # (was hardcoded +1.0 until 2026-09-23 -- stale for the 1.5 m/s worlds).
+        v_rel = vmax + obstacle_vmax
         doc['trajectory_point_step'] = max(1, int(0.15 / (float(fp.get('model_dt', 0.05)) * v_rel)))
         # Soft band must at least cover the braking distance v^2/2a; below that the
         # cost only starts once stopping is already impossible.
@@ -295,10 +312,7 @@ def speed_params(src_path, vmax):
         changes.append('space-time res %.2f m / dt 0.20 s (search speed %.2f m/s), '
                        'horizon 3.0 s, detection reach %.1f m'
                        % (fp['tgmppi_spacetime_res'], vmax, vmax * 3.0))
-    out = tempfile.NamedTemporaryFile(mode='w', suffix='_max_speed.yaml', delete=False)
-    yaml.safe_dump(data, out)
-    out.close()
-    return out.name, changes
+    return write_params(data, '_max_speed.yaml'), changes
 
 
 def launch_nav2(context, nav2_launch_path, configured_params):
@@ -336,20 +350,11 @@ def launch_nav2(context, nav2_launch_path, configured_params):
         actions.append(LogInfo(msg="[backend] ignored: '%s' is not cpu or cuda" % backend))
     max_speed = LaunchConfiguration('max_speed').perform(context).strip()
     if max_speed:
-        params_path, speed_changes = speed_params(params_path, float(max_speed))
+        obstacle_speed_max = float(LaunchConfiguration('obstacle_speed_max').perform(context))
+        params_path, speed_changes = speed_params(params_path, float(max_speed), obstacle_speed_max)
         actions.append(LogInfo(msg='[max_speed] ' + '; '.join(speed_changes)))
     dynamic = (LaunchConfiguration('dynamic_obstacles').perform(context).lower() == 'true' and
                LaunchConfiguration('sim').perform(context).lower() == 'true')
-    if dynamic:
-        with open(params_path) as f:
-            follow = (yaml.safe_load(f).get('controller_server', {})
-                      .get('ros__parameters', {}).get('FollowPath', {}))
-        if 'TgMppiController' not in str(follow.get('plugin', '')):
-            # The baseline is stock Nav2 MPPI and must run unmodified: removing moving
-            # obstacles from its costmap without prediction would blind it.
-            actions.append(LogInfo(msg='[dynamic_obstacles] ignored: params are not TG-MPPI '
-                                       '(the stock Nav2 baseline always runs unmodified)'))
-            dynamic = False
     if dynamic:
         params_path, changes = dynamic_obstacle_params(params_path)
         actions.append(LogInfo(msg='[dynamic_obstacles] ' + '; '.join(changes)))
@@ -402,7 +407,7 @@ def generate_launch_description():
     ]
 
     nav2_config_path = PathJoinSubstitution(
-        [FindPackageShare('susag_nav2'), 'param', 'navigation_tgmppi_tight.yaml']
+        [FindPackageShare('susag_nav2'), 'param', 'navigation_tgmppi_tight_experiment.yaml']
     )
 
     use_gt_localization = PythonExpression([
@@ -507,6 +512,17 @@ def generate_launch_description():
             description='Override vx_max (m/s) and rescale every speed-dependent param '
                         '(costmap window, flood radius, cull distance, space-time grid). '
                         'Empty = use the YAML as-is, e.g. for narrow BARN worlds.'
+        ),
+
+        DeclareLaunchArgument(
+            name='obstacle_speed_max',
+            default_value='1.0',
+            description='Assumed worst-case dynamic-obstacle speed (m/s), used with max_speed '
+                        'to size DynamicObstacleCritic cull_distance/trajectory_point_step off '
+                        'the real worst-case closing speed. Default 1.0 matches the original '
+                        '1-2 obstacle scenarios; the d15/d20/d25/d30/d40/d50 worlds go up to '
+                        '1.5 -- pass obstacle_speed_max:=1.5 with those or cull_distance is '
+                        'sized for a slower closing speed than can actually occur.'
         ),
 
         DeclareLaunchArgument(

@@ -209,6 +209,8 @@ controller_server:
       # meaningful with world_48_dynamic (susag_gazebo_plugins) running;
       # inert (never subscribes, never triggers) otherwise.
       tgmppi_spacetime_enabled: true
+      tgmppi_obstacle_timeout: 0.5  # seconds; stale observed obstacle stops TG-MPPI
+      tgmppi_require_obstacle_tracking: false  # dynamic_obstacles:=true sets this true
       tgmppi_spacetime_obstacle_topics:
         - "/moving_obstacle_1/ground_truth/odom"
         - "/moving_obstacle_2/ground_truth/odom"
@@ -235,6 +237,32 @@ controller_server:
         - "/moving_obstacle_23/ground_truth/odom"
         - "/moving_obstacle_24/ground_truth/odom"
         - "/moving_obstacle_25/ground_truth/odom"
+        - "/moving_obstacle_26/ground_truth/odom"
+        - "/moving_obstacle_27/ground_truth/odom"
+        - "/moving_obstacle_28/ground_truth/odom"
+        - "/moving_obstacle_29/ground_truth/odom"
+        - "/moving_obstacle_30/ground_truth/odom"
+        - "/moving_obstacle_31/ground_truth/odom"
+        - "/moving_obstacle_32/ground_truth/odom"
+        - "/moving_obstacle_33/ground_truth/odom"
+        - "/moving_obstacle_34/ground_truth/odom"
+        - "/moving_obstacle_35/ground_truth/odom"
+        - "/moving_obstacle_36/ground_truth/odom"
+        - "/moving_obstacle_37/ground_truth/odom"
+        - "/moving_obstacle_38/ground_truth/odom"
+        - "/moving_obstacle_39/ground_truth/odom"
+        - "/moving_obstacle_40/ground_truth/odom"
+        - "/moving_obstacle_41/ground_truth/odom"
+        - "/moving_obstacle_42/ground_truth/odom"
+        - "/moving_obstacle_43/ground_truth/odom"
+        - "/moving_obstacle_44/ground_truth/odom"
+        - "/moving_obstacle_45/ground_truth/odom"
+        - "/moving_obstacle_46/ground_truth/odom"
+        - "/moving_obstacle_47/ground_truth/odom"
+        - "/moving_obstacle_48/ground_truth/odom"
+        - "/moving_obstacle_49/ground_truth/odom"
+        - "/moving_obstacle_50/ground_truth/odom"
+
       # Space-time blob (branch space-time-blob, docs/space_time_blob_design.md): false keeps
       # the wait/detour search above unchanged; true replaces it with the geodesic blob lifted
       # into (x, y, t). Toggle from the launch line with spacetime_blob:=true.

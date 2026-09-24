@@ -167,6 +167,12 @@ struct OptimizerSettings
   // perception to port the search algorithm faithfully.
   std::vector<std::string> tgmppi_spacetime_obstacle_topics{};
   float tgmppi_spacetime_obstacle_radius{0.25f};    // matches the test world's cylinder
+  // Maximum age of an obstacle odometry observation at the start of a control
+  // cycle. A previously seen obstacle that stops publishing faults tracking.
+  float tgmppi_obstacle_timeout{0.5f};
+  // Set by the sim dynamic-obstacle launch mode, whose scan filter removes
+  // moving objects from the costmap. Wait for at least one live observation.
+  bool tgmppi_require_obstacle_tracking{false};
   float tgmppi_spacetime_horizon{3.0f};             // search horizon (s), sandbox default
   float tgmppi_spacetime_dt_layer{0.25f};           // search time-layer spacing (s)
   float tgmppi_spacetime_res{0.10f};                // search grid resolution (m)

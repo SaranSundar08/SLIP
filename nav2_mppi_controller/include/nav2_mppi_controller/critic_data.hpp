@@ -25,6 +25,7 @@
 #include "nav2_mppi_controller/models/trajectories.hpp"
 #include "nav2_mppi_controller/models/path.hpp"
 #include "nav2_mppi_controller/motion_models.hpp"
+#include "nav2_tgmppi_controller/tools/dynamic_obstacle_cost.hpp"
 
 
 namespace mppi
@@ -49,6 +50,8 @@ struct CriticData
   std::shared_ptr<MotionModel> motion_model;
   std::optional<std::vector<bool>> path_pts_valid;
   std::optional<size_t> furthest_reached_path_point;
+  const std::vector<tgmppi::SpaceTimeObstacle> * tracked_obstacles{nullptr};
+  std::optional<tgmppi::DynamicObstacleCostParams> dynamic_obstacle_params;
 };
 
 }  // namespace mppi

@@ -89,6 +89,9 @@ public:
     */
   virtual void score(CriticData & data) = 0;
 
+  // Unknown/external critics get a synchronized CPU snapshot by default.
+  virtual bool supportsGpuBatch() const {return false;}
+
   /**
     * @brief Initialize critic
     */

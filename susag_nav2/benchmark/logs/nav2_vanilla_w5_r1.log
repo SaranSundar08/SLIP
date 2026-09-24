@@ -1,425 +1,432 @@
-[INFO] [launch]: All log files can be found below /home/saran/.ros/log/2026-07-15-15-29-27-866460-aorus-116301
+[INFO] [launch]: All log files can be found below /home/saran/.ros/log/2026-09-19-00-34-58-180238-aorus-91090
 [INFO] [launch]: Default logging verbosity is set to INFO
-[INFO] [component_container_isolated-1]: process started with pid [116334]
-[component_container_isolated-1] [INFO] [1784122168.486588620] [nav2_container]: Load Library: /opt/ros/humble/lib/libmap_server_core.so
-[component_container_isolated-1] [INFO] [1784122168.494273614] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::CostmapFilterInfoServer>
-[component_container_isolated-1] [INFO] [1784122168.494295083] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapSaver>
-[component_container_isolated-1] [INFO] [1784122168.494300996] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapServer>
-[component_container_isolated-1] [INFO] [1784122168.494305188] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapServer>
-[component_container_isolated-1] [INFO] [1784122168.497096229] [map_server]: 
-[component_container_isolated-1] 	map_server lifecycle node launched. 
-[component_container_isolated-1] 	Waiting on external lifecycle transitions to activate
-[component_container_isolated-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
-[component_container_isolated-1] [INFO] [1784122168.497122402] [map_server]: Creating
-[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/map_server' in container '/nav2_container'
-[component_container_isolated-1] [INFO] [1784122168.499645949] [nav2_container]: Load Library: /opt/ros/humble/lib/libamcl_core.so
-[component_container_isolated-1] [INFO] [1784122168.501440461] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_amcl::AmclNode>
-[component_container_isolated-1] [INFO] [1784122168.501455902] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_amcl::AmclNode>
-[component_container_isolated-1] [INFO] [1784122168.504092561] [amcl]: 
-[component_container_isolated-1] 	amcl lifecycle node launched. 
-[component_container_isolated-1] 	Waiting on external lifecycle transitions to activate
-[component_container_isolated-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
-[component_container_isolated-1] [INFO] [1784122168.504432798] [amcl]: Creating
-[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/amcl' in container '/nav2_container'
-[component_container_isolated-1] [INFO] [1784122168.506170101] [nav2_container]: Load Library: /opt/ros/humble/lib/libnav2_lifecycle_manager_core.so
-[component_container_isolated-1] [INFO] [1784122168.506839694] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
-[component_container_isolated-1] [INFO] [1784122168.506859236] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
-[component_container_isolated-1] [INFO] [1784122168.509346233] [lifecycle_manager_localization]: Creating
-[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/lifecycle_manager_localization' in container '/nav2_container'
-[component_container_isolated-1] [INFO] [1784122168.510308614] [lifecycle_manager_localization]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.512149443] [lifecycle_manager_localization]: [34m[1mStarting managed nodes bringup...[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.512187331] [lifecycle_manager_localization]: [34m[1mConfiguring map_server[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.512413832] [map_server]: Configuring
-[component_container_isolated-1] [INFO] [1784122168.512450495] [map_io]: Loading yaml file: /home/saran/robohouse_ws/src/BARN_dataset/map_files/yaml_5.yaml
-[component_container_isolated-1] [INFO] [1784122168.512594694] [map_io]: resolution: 0.15
-[component_container_isolated-1] [INFO] [1784122168.512598244] [map_io]: origin[0]: -4.5
-[component_container_isolated-1] [INFO] [1784122168.512600768] [map_io]: origin[1]: 0
-[component_container_isolated-1] [INFO] [1784122168.512607455] [map_io]: origin[2]: 0
-[component_container_isolated-1] [INFO] [1784122168.512610312] [map_io]: free_thresh: 0.5
-[component_container_isolated-1] [INFO] [1784122168.512612569] [map_io]: occupied_thresh: 0.5
-[component_container_isolated-1] [INFO] [1784122168.512615066] [map_io]: mode: trinary
-[component_container_isolated-1] [INFO] [1784122168.512617851] [map_io]: negate: 0
-[component_container_isolated-1] [INFO] [1784122168.512729719] [map_io]: Loading image_file: /home/saran/robohouse_ws/src/BARN_dataset/map_files/map_pgm_5.pgm
-[component_container_isolated-1] [INFO] [1784122168.512944956] [map_io]: Read map /home/saran/robohouse_ws/src/BARN_dataset/map_files/map_pgm_5.pgm: 30 X 66 map @ 0.15 m/cell
-[component_container_isolated-1] [INFO] [1784122168.514058130] [lifecycle_manager_localization]: [34m[1mConfiguring amcl[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.514133407] [amcl]: Configuring
-[component_container_isolated-1] [INFO] [1784122168.514216301] [amcl]: initTransforms
-[component_container_isolated-1] [INFO] [1784122168.520076795] [amcl]: initPubSub
-[component_container_isolated-1] [INFO] [1784122168.522134216] [amcl]: Subscribed to map topic.
-[component_container_isolated-1] [INFO] [1784122168.523828016] [lifecycle_manager_localization]: [34m[1mActivating map_server[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.523924194] [map_server]: Activating
-[component_container_isolated-1] [INFO] [1784122168.523969432] [map_server]: Creating bond (map_server) to lifecycle manager.
-[component_container_isolated-1] [INFO] [1784122168.524035200] [amcl]: Received a 30 X 66 map @ 0.150 m/pix
-[component_container_isolated-1] [INFO] [1784122168.625379101] [lifecycle_manager_localization]: Server map_server connected with bond.
-[component_container_isolated-1] [INFO] [1784122168.625405617] [lifecycle_manager_localization]: [34m[1mActivating amcl[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.625631109] [amcl]: Activating
-[component_container_isolated-1] [INFO] [1784122168.625731378] [amcl]: Creating bond (amcl) to lifecycle manager.
-[component_container_isolated-1] [INFO] [1784122168.705792918] [nav2_container]: Load Library: /opt/ros/humble/lib/libcontroller_server_core.so
-[component_container_isolated-1] [INFO] [1784122168.707233644] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_controller::ControllerServer>
-[component_container_isolated-1] [INFO] [1784122168.707243187] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_controller::ControllerServer>
-[component_container_isolated-1] [INFO] [1784122168.710204156] [controller_server]: 
-[component_container_isolated-1] 	controller_server lifecycle node launched. 
-[component_container_isolated-1] 	Waiting on external lifecycle transitions to activate
-[component_container_isolated-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
-[component_container_isolated-1] [INFO] [1784122168.712818009] [controller_server]: Creating controller server
-[component_container_isolated-1] [INFO] [1784122168.717710095] [local_costmap.local_costmap]: 
-[component_container_isolated-1] 	local_costmap lifecycle node launched. 
-[component_container_isolated-1] 	Waiting on external lifecycle transitions to activate
-[component_container_isolated-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
-[component_container_isolated-1] [INFO] [1784122168.718386536] [local_costmap.local_costmap]: Creating Costmap
+[INFO] [ground_truth_localizer-1]: process started with pid [91123]
+[INFO] [component_container_isolated-2]: process started with pid [91125]
+[ground_truth_localizer-1] [INFO] [1789770899.255610446] [ground_truth_localizer]: publishing map->odom from /ground_truth/odom (AMCL tf_broadcast must be false)
+[component_container_isolated-2] [INFO] [1789770899.349642024] [nav2_container]: Load Library: /opt/ros/humble/lib/libcontroller_server_core.so
+[component_container_isolated-2] [INFO] [1789770899.353363181] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_controller::ControllerServer>
+[component_container_isolated-2] [INFO] [1789770899.353383931] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_controller::ControllerServer>
+[component_container_isolated-2] [INFO] [1789770899.357465772] [controller_server]: 
+[component_container_isolated-2] 	controller_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.362772949] [controller_server]: Creating controller server
+[component_container_isolated-2] [INFO] [1789770899.369271659] [local_costmap.local_costmap]: 
+[component_container_isolated-2] 	local_costmap lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.369687096] [local_costmap.local_costmap]: Creating Costmap
+[component_container_isolated-2] [INFO] [1789770899.370107801] [nav2_container]: Load Library: /opt/ros/humble/lib/libmap_server_core.so
 [INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/controller_server' in container '/nav2_container'
-[component_container_isolated-1] [INFO] [1784122168.720248712] [nav2_container]: Load Library: /opt/ros/humble/lib/libsmoother_server_core.so
-[component_container_isolated-1] [INFO] [1784122168.721628597] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_smoother::SmootherServer>
-[component_container_isolated-1] [INFO] [1784122168.721654305] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_smoother::SmootherServer>
-[component_container_isolated-1] [INFO] [1784122168.727090994] [lifecycle_manager_localization]: Server amcl connected with bond.
-[component_container_isolated-1] [INFO] [1784122168.727107606] [lifecycle_manager_localization]: [34m[1mManaged nodes are active[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.727113996] [lifecycle_manager_localization]: [34m[1mCreating bond timer...[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.727814185] [smoother_server]: 
-[component_container_isolated-1] 	smoother_server lifecycle node launched. 
-[component_container_isolated-1] 	Waiting on external lifecycle transitions to activate
-[component_container_isolated-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
-[component_container_isolated-1] [INFO] [1784122168.729277330] [smoother_server]: Creating smoother server
+[component_container_isolated-2] [INFO] [1789770899.376756450] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::CostmapFilterInfoServer>
+[component_container_isolated-2] [INFO] [1789770899.376777614] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapSaver>
+[component_container_isolated-2] [INFO] [1789770899.376781306] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapServer>
+[component_container_isolated-2] [INFO] [1789770899.376785728] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapServer>
+[component_container_isolated-2] [INFO] [1789770899.379649687] [map_server]: 
+[component_container_isolated-2] 	map_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.379681000] [map_server]: Creating
+[component_container_isolated-2] [INFO] [1789770899.379902650] [nav2_container]: Load Library: /opt/ros/humble/lib/libsmoother_server_core.so
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/map_server' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1789770899.380862079] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_smoother::SmootherServer>
+[component_container_isolated-2] [INFO] [1789770899.380881459] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_smoother::SmootherServer>
+[component_container_isolated-2] [INFO] [1789770899.384339453] [smoother_server]: 
+[component_container_isolated-2] 	smoother_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.385428832] [smoother_server]: Creating smoother server
+[component_container_isolated-2] [INFO] [1789770899.386979382] [nav2_container]: Load Library: /opt/ros/humble/lib/libamcl_core.so
 [INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/smoother_server' in container '/nav2_container'
-[component_container_isolated-1] [INFO] [1784122168.730538857] [nav2_container]: Load Library: /opt/ros/humble/lib/libplanner_server_core.so
-[component_container_isolated-1] [INFO] [1784122168.730987259] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_planner::PlannerServer>
-[component_container_isolated-1] [INFO] [1784122168.730996462] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_planner::PlannerServer>
-[component_container_isolated-1] [INFO] [1784122168.733977172] [planner_server]: 
-[component_container_isolated-1] 	planner_server lifecycle node launched. 
-[component_container_isolated-1] 	Waiting on external lifecycle transitions to activate
-[component_container_isolated-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
-[component_container_isolated-1] [INFO] [1784122168.734921343] [planner_server]: Creating
-[component_container_isolated-1] [INFO] [1784122168.738319984] [global_costmap.global_costmap]: 
-[component_container_isolated-1] 	global_costmap lifecycle node launched. 
-[component_container_isolated-1] 	Waiting on external lifecycle transitions to activate
-[component_container_isolated-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
-[component_container_isolated-1] [INFO] [1784122168.738615864] [global_costmap.global_costmap]: Creating Costmap
+[component_container_isolated-2] [INFO] [1789770899.388214846] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_amcl::AmclNode>
+[component_container_isolated-2] [INFO] [1789770899.388232107] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_amcl::AmclNode>
+[component_container_isolated-2] [INFO] [1789770899.392208310] [amcl]: 
+[component_container_isolated-2] 	amcl lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.392507067] [amcl]: Creating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/amcl' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1789770899.393638695] [nav2_container]: Load Library: /opt/ros/humble/lib/libplanner_server_core.so
+[component_container_isolated-2] [INFO] [1789770899.394145512] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_planner::PlannerServer>
+[component_container_isolated-2] [INFO] [1789770899.394155599] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_planner::PlannerServer>
+[component_container_isolated-2] [INFO] [1789770899.399717666] [planner_server]: 
+[component_container_isolated-2] 	planner_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.401035331] [planner_server]: Creating
+[component_container_isolated-2] [INFO] [1789770899.406911724] [global_costmap.global_costmap]: 
+[component_container_isolated-2] 	global_costmap lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.407287309] [global_costmap.global_costmap]: Creating Costmap
+[component_container_isolated-2] [INFO] [1789770899.408065345] [nav2_container]: Load Library: /opt/ros/humble/lib/libnav2_lifecycle_manager_core.so
 [INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/planner_server' in container '/nav2_container'
-[component_container_isolated-1] [INFO] [1784122168.739788199] [nav2_container]: Load Library: /opt/ros/humble/lib/libbehavior_server_core.so
-[component_container_isolated-1] [INFO] [1784122168.741455522] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<behavior_server::BehaviorServer>
-[component_container_isolated-1] [INFO] [1784122168.741468490] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<behavior_server::BehaviorServer>
-[component_container_isolated-1] [INFO] [1784122168.744659869] [behavior_server]: 
-[component_container_isolated-1] 	behavior_server lifecycle node launched. 
-[component_container_isolated-1] 	Waiting on external lifecycle transitions to activate
-[component_container_isolated-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.408533284] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1789770899.408543521] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1789770899.413237629] [lifecycle_manager_localization]: Creating
+[component_container_isolated-2] [INFO] [1789770899.414529166] [lifecycle_manager_localization]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/lifecycle_manager_localization' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1789770899.414542383] [nav2_container]: Load Library: /opt/ros/humble/lib/libbehavior_server_core.so
+[component_container_isolated-2] [INFO] [1789770899.417877122] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<behavior_server::BehaviorServer>
+[component_container_isolated-2] [INFO] [1789770899.417932566] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<behavior_server::BehaviorServer>
+[component_container_isolated-2] [INFO] [1789770899.421556691] [lifecycle_manager_localization]: [34m[1mStarting managed nodes bringup...[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.421605263] [lifecycle_manager_localization]: [34m[1mConfiguring map_server[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.421759678] [map_server]: Configuring
+[component_container_isolated-2] [INFO] [1789770899.421820233] [map_io]: Loading yaml file: /home/saran/robohouse_ws/src/BARN_dataset/scaled_1/map_files/yaml_5.yaml
+[component_container_isolated-2] [INFO] [1789770899.422010202] [map_io]: resolution: 0.15
+[component_container_isolated-2] [INFO] [1789770899.422015576] [map_io]: origin[0]: -4.5
+[component_container_isolated-2] [INFO] [1789770899.422018429] [map_io]: origin[1]: 0
+[component_container_isolated-2] [INFO] [1789770899.422020744] [map_io]: origin[2]: 0
+[component_container_isolated-2] [INFO] [1789770899.422023254] [map_io]: free_thresh: 0.5
+[component_container_isolated-2] [INFO] [1789770899.422026794] [map_io]: occupied_thresh: 0.5
+[component_container_isolated-2] [INFO] [1789770899.422031062] [map_io]: mode: trinary
+[component_container_isolated-2] [INFO] [1789770899.422035500] [map_io]: negate: 0
+[component_container_isolated-2] [INFO] [1789770899.422189631] [map_io]: Loading image_file: /home/saran/robohouse_ws/src/BARN_dataset/scaled_1/map_files/map_pgm_5.pgm
+[component_container_isolated-2] [INFO] [1789770899.422468679] [map_io]: Read map /home/saran/robohouse_ws/src/BARN_dataset/scaled_1/map_files/map_pgm_5.pgm: 30 X 78 map @ 0.15 m/cell
+[component_container_isolated-2] [INFO] [1789770899.425066859] [lifecycle_manager_localization]: [34m[1mConfiguring amcl[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.425171697] [amcl]: Configuring
+[component_container_isolated-2] [INFO] [1789770899.425257077] [amcl]: initTransforms
+[component_container_isolated-2] [INFO] [1789770899.428682185] [behavior_server]: 
+[component_container_isolated-2] 	behavior_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.431290021] [amcl]: initPubSub
 [INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/behavior_server' in container '/nav2_container'
-[component_container_isolated-1] [INFO] [1784122168.746754690] [nav2_container]: Load Library: /opt/ros/humble/lib/libbt_navigator_core.so
-[component_container_isolated-1] [INFO] [1784122168.747738029] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_bt_navigator::BtNavigator>
-[component_container_isolated-1] [INFO] [1784122168.747747813] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_bt_navigator::BtNavigator>
-[component_container_isolated-1] [INFO] [1784122168.751568738] [bt_navigator]: 
-[component_container_isolated-1] 	bt_navigator lifecycle node launched. 
+[component_container_isolated-2] [INFO] [1789770899.433029599] [amcl]: Subscribed to map topic.
+[component_container_isolated-2] [INFO] [1789770899.433521387] [nav2_container]: Load Library: /opt/ros/humble/lib/libbt_navigator_core.so
+[component_container_isolated-2] [INFO] [1789770899.435281512] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_bt_navigator::BtNavigator>
+[component_container_isolated-2] [INFO] [1789770899.435302005] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_bt_navigator::BtNavigator>
+[component_container_isolated-2] [INFO] [1789770899.436136223] [lifecycle_manager_localization]: [34m[1mActivating map_server[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.436242895] [map_server]: Activating
+[component_container_isolated-2] [INFO] [1789770899.436330961] [map_server]: Creating bond (map_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770899.436364206] [amcl]: Received a 30 X 78 map @ 0.150 m/pix
+[component_container_isolated-2] [INFO] [1789770899.443613790] [bt_navigator]: 
 [INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/bt_navigator' in container '/nav2_container'
-[component_container_isolated-1] 	Waiting on external lifecycle transitions to activate
-[component_container_isolated-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
-[component_container_isolated-1] [INFO] [1784122168.751607490] [bt_navigator]: Creating
-[component_container_isolated-1] [INFO] [1784122168.752764970] [nav2_container]: Load Library: /opt/ros/humble/lib/libwaypoint_follower_core.so
-[component_container_isolated-1] [INFO] [1784122168.753120299] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_waypoint_follower::WaypointFollower>
-[component_container_isolated-1] [INFO] [1784122168.753129687] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_waypoint_follower::WaypointFollower>
-[component_container_isolated-1] [INFO] [1784122168.756565620] [waypoint_follower]: 
-[component_container_isolated-1] 	waypoint_follower lifecycle node launched. 
-[component_container_isolated-1] 	Waiting on external lifecycle transitions to activate
-[component_container_isolated-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
-[component_container_isolated-1] [INFO] [1784122168.757062144] [waypoint_follower]: Creating
+[component_container_isolated-2] 	bt_navigator lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.443662920] [bt_navigator]: Creating
+[component_container_isolated-2] [INFO] [1789770899.445572529] [nav2_container]: Load Library: /opt/ros/humble/lib/libwaypoint_follower_core.so
+[component_container_isolated-2] [INFO] [1789770899.445997940] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_waypoint_follower::WaypointFollower>
+[component_container_isolated-2] [INFO] [1789770899.446009539] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_waypoint_follower::WaypointFollower>
+[component_container_isolated-2] [INFO] [1789770899.458410644] [waypoint_follower]: 
+[component_container_isolated-2] 	waypoint_follower lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.459594430] [waypoint_follower]: Creating
 [INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/waypoint_follower' in container '/nav2_container'
-[component_container_isolated-1] [INFO] [1784122168.758430101] [nav2_container]: Load Library: /opt/ros/humble/lib/libvelocity_smoother_core.so
-[component_container_isolated-1] [INFO] [1784122168.759129899] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_velocity_smoother::VelocitySmoother>
-[component_container_isolated-1] [INFO] [1784122168.759149765] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_velocity_smoother::VelocitySmoother>
-[component_container_isolated-1] [INFO] [1784122168.766962342] [velocity_smoother]: 
-[component_container_isolated-1] 	velocity_smoother lifecycle node launched. 
-[component_container_isolated-1] 	Waiting on external lifecycle transitions to activate
-[component_container_isolated-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.463364153] [nav2_container]: Load Library: /opt/ros/humble/lib/libvelocity_smoother_core.so
+[component_container_isolated-2] [INFO] [1789770899.464065469] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_velocity_smoother::VelocitySmoother>
+[component_container_isolated-2] [INFO] [1789770899.464078873] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_velocity_smoother::VelocitySmoother>
+[component_container_isolated-2] [INFO] [1789770899.472680512] [velocity_smoother]: 
+[component_container_isolated-2] 	velocity_smoother lifecycle node launched. 
 [INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/velocity_smoother' in container '/nav2_container'
-[component_container_isolated-1] [INFO] [1784122168.767822120] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
-[component_container_isolated-1] [INFO] [1784122168.767841751] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
-[component_container_isolated-1] [INFO] [1784122168.774359290] [lifecycle_manager_navigation]: Creating
-[component_container_isolated-1] [INFO] [1784122168.775853574] [lifecycle_manager_navigation]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789770899.474567046] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1789770899.474580091] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1789770899.479701398] [lifecycle_manager_navigation]: Creating
 [INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/lifecycle_manager_navigation' in container '/nav2_container'
-[component_container_isolated-1] [INFO] [1784122168.784143218] [lifecycle_manager_navigation]: [34m[1mStarting managed nodes bringup...[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.784183841] [lifecycle_manager_navigation]: [34m[1mConfiguring controller_server[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.784303816] [controller_server]: Configuring controller interface
-[component_container_isolated-1] [INFO] [1784122168.784534475] [controller_server]: getting goal checker plugins..
-[component_container_isolated-1] [INFO] [1784122168.784667118] [controller_server]: Controller frequency set to 20.0000Hz
-[component_container_isolated-1] [INFO] [1784122168.784711517] [local_costmap.local_costmap]: Configuring
-[component_container_isolated-1] [INFO] [1784122168.788213792] [local_costmap.local_costmap]: Using plugin "obstacle_layer"
-[component_container_isolated-1] [INFO] [1784122168.791234256] [local_costmap.local_costmap]: Subscribed to Topics: scan base_scan
-[component_container_isolated-1] [INFO] [1784122168.804355061] [local_costmap.local_costmap]: Initialized plugin "obstacle_layer"
-[component_container_isolated-1] [INFO] [1784122168.804406632] [local_costmap.local_costmap]: Using plugin "stvl_local"
-[component_container_isolated-1] [INFO] [1784122168.831390457] [local_costmap.local_costmap]: stvl_local being initialized as SpatioTemporalVoxelLayer!
-[component_container_isolated-1] [INFO] [1784122168.831426047] [local_costmap.local_costmap]: stvl_local's global frame is odom.
-[component_container_isolated-1] [INFO] [1784122168.832672268] [local_costmap.local_costmap]: stvl_local loaded parameters from parameter server.
-[component_container_isolated-1] [INFO] [1784122168.843083560] [local_costmap.local_costmap]: stvl_local created underlying voxel grid.
-[component_container_isolated-1] [INFO] [1784122168.845172748] [local_costmap.local_costmap]: Voxel filter activated.
-[component_container_isolated-1] [INFO] [1784122168.851252263] [local_costmap.local_costmap]: stvl_local initialization complete!
-[component_container_isolated-1] [INFO] [1784122168.851291350] [local_costmap.local_costmap]: Initialized plugin "stvl_local"
-[component_container_isolated-1] [INFO] [1784122168.851298406] [local_costmap.local_costmap]: Using plugin "inflation_layer"
-[component_container_isolated-1] [INFO] [1784122168.851874421] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"
-[component_container_isolated-1] [INFO] [1784122168.888865599] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
-[component_container_isolated-1] [INFO] [1784122168.890466531] [controller_server]: Created goal checker : general_goal_checker of type nav2_controller::SimpleGoalChecker
-[component_container_isolated-1] [INFO] [1784122168.890885159] [controller_server]: Controller Server has general_goal_checker  goal checkers available.
-[component_container_isolated-1] [INFO] [1784122168.892065804] [controller_server]: Created controller : FollowPath of type nav2_mppi_controller::MPPIController
-[component_container_isolated-1] [INFO] [1784122168.895756190] [controller_server]: [SLIP] MPPI variant = 'log'
-[component_container_isolated-1] [INFO] [1784122168.897155852] [controller_server]: Controller period is equal to model dt. Control sequence shifting is ON
-[component_container_isolated-1] [INFO] [1784122168.899133791] [controller_server]: ConstraintCritic instantiated with 1 power and 4.000000 weight.
-[component_container_isolated-1] [INFO] [1784122168.899165372] [controller_server]: Critic loaded : mppi::critics::ConstraintCritic
-[component_container_isolated-1] [INFO] [1784122168.901373610] [controller_server]: InflationCostCritic instantiated with 1 power and 300.000000 / 0.015000 weights. Critic will collision check based on footprint cost.
-[component_container_isolated-1] [INFO] [1784122168.901402336] [controller_server]: Critic loaded : mppi::critics::CostCritic
-[component_container_isolated-1] [INFO] [1784122168.901718973] [controller_server]: GoalCritic instantiated with 1 power and 5.000000 weight.
-[component_container_isolated-1] [INFO] [1784122168.901742179] [controller_server]: Critic loaded : mppi::critics::GoalCritic
-[component_container_isolated-1] [INFO] [1784122168.903946490] [controller_server]: GoalAngleCritic instantiated with 1 power, 3.000000 weight, 0.500000 angular threshold and symmetric_yaw_tolerance disabled
-[component_container_isolated-1] [INFO] [1784122168.903973743] [controller_server]: Critic loaded : mppi::critics::GoalAngleCritic
-[component_container_isolated-1] [INFO] [1784122168.906027340] [controller_server]: ReferenceTrajectoryCritic instantiated with 1 power and 3.000000 weight
-[component_container_isolated-1] [INFO] [1784122168.906051384] [controller_server]: Critic loaded : mppi::critics::PathAlignCritic
-[component_container_isolated-1] [INFO] [1784122168.907333600] [controller_server]: Critic loaded : mppi::critics::PathFollowCritic
-[component_container_isolated-1] [INFO] [1784122168.909265983] [controller_server]: PathAngleCritic instantiated with 1 power and 2.000000 weight. Reversing allowed.
-[component_container_isolated-1] [INFO] [1784122168.909290790] [controller_server]: Critic loaded : mppi::critics::PathAngleCritic
-[component_container_isolated-1] [INFO] [1784122168.911205658] [controller_server]: PreferForwardCritic instantiated with 1 power and 2.000000 weight.
-[component_container_isolated-1] [INFO] [1784122168.911226025] [controller_server]: Critic loaded : mppi::critics::PreferForwardCritic
-[component_container_isolated-1] [INFO] [1784122168.940776939] [controller_server]: Optimizer reset
-[component_container_isolated-1] [INFO] [1784122168.947217610] [MPPIController]: Configured MPPI Controller: FollowPath
-[component_container_isolated-1] [INFO] [1784122168.947239893] [controller_server]: Controller Server has FollowPath  controllers available.
-[component_container_isolated-1] [INFO] [1784122168.957721751] [lifecycle_manager_navigation]: [34m[1mConfiguring smoother_server[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.958234905] [smoother_server]: Configuring smoother server
-[component_container_isolated-1] [INFO] [1784122168.968735891] [smoother_server]: Created smoother : simple_smoother of type nav2_smoother::SimpleSmoother
-[component_container_isolated-1] [INFO] [1784122168.970529644] [smoother_server]: Smoother Server has simple_smoother  smoothers available.
-[component_container_isolated-1] [INFO] [1784122168.977516459] [lifecycle_manager_navigation]: [34m[1mConfiguring planner_server[0m[0m
-[component_container_isolated-1] [INFO] [1784122168.977631847] [planner_server]: Configuring
-[component_container_isolated-1] [INFO] [1784122168.977672560] [global_costmap.global_costmap]: Configuring
-[component_container_isolated-1] [INFO] [1784122168.984861483] [global_costmap.global_costmap]: Using plugin "static_layer"
-[component_container_isolated-1] [INFO] [1784122168.988886887] [global_costmap.global_costmap]: Subscribing to the map topic (/map) with transient local durability
-[component_container_isolated-1] [INFO] [1784122168.990322636] [global_costmap.global_costmap]: Subscribing to updates
-[component_container_isolated-1] [INFO] [1784122168.991654616] [global_costmap.global_costmap]: Initialized plugin "static_layer"
-[component_container_isolated-1] [INFO] [1784122168.991678394] [global_costmap.global_costmap]: Using plugin "obstacle_layer"
-[component_container_isolated-1] [INFO] [1784122168.994608521] [global_costmap.global_costmap]: Subscribed to Topics: scan base_scan
-[component_container_isolated-1] [INFO] [1784122169.001348455] [global_costmap.global_costmap]: Initialized plugin "obstacle_layer"
-[component_container_isolated-1] [INFO] [1784122169.001373685] [global_costmap.global_costmap]: Using plugin "stvl_global"
-[component_container_isolated-1] [INFO] [1784122169.001483223] [global_costmap.global_costmap]: stvl_global being initialized as SpatioTemporalVoxelLayer!
-[component_container_isolated-1] [INFO] [1784122169.001488812] [global_costmap.global_costmap]: stvl_global's global frame is map.
-[component_container_isolated-1] [INFO] [1784122169.002238632] [global_costmap.global_costmap]: stvl_global loaded parameters from parameter server.
-[component_container_isolated-1] [INFO] [1784122169.002947730] [global_costmap.global_costmap]: stvl_global created underlying voxel grid.
-[component_container_isolated-1] [INFO] [1784122169.004108136] [global_costmap.global_costmap]: Voxel filter activated.
-[component_container_isolated-1] [INFO] [1784122169.005313579] [global_costmap.global_costmap]: stvl_global initialization complete!
-[component_container_isolated-1] [INFO] [1784122169.005330505] [global_costmap.global_costmap]: Initialized plugin "stvl_global"
-[component_container_isolated-1] [INFO] [1784122169.005334912] [global_costmap.global_costmap]: Using plugin "inflation_layer"
-[component_container_isolated-1] [INFO] [1784122169.005802914] [global_costmap.global_costmap]: Initialized plugin "inflation_layer"
-[component_container_isolated-1] [INFO] [1784122169.010691380] [planner_server]: Created global planner plugin GridBased of type nav2_navfn_planner/NavfnPlanner
-[component_container_isolated-1] [INFO] [1784122169.010727474] [planner_server]: Configuring plugin GridBased of type NavfnPlanner
-[component_container_isolated-1] [INFO] [1784122169.011303378] [planner_server]: Planner Server has GridBased  planners available.
-[component_container_isolated-1] [INFO] [1784122169.017870175] [lifecycle_manager_navigation]: [34m[1mConfiguring behavior_server[0m[0m
-[component_container_isolated-1] [INFO] [1784122169.017986426] [behavior_server]: Configuring
-[component_container_isolated-1] [INFO] [1784122169.021269073] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors/Spin
-[component_container_isolated-1] [INFO] [1784122169.021764450] [behavior_server]: Configuring spin
-[component_container_isolated-1] [INFO] [1784122169.023828701] [behavior_server]: Creating behavior plugin backup of type nav2_behaviors/BackUp
-[component_container_isolated-1] [INFO] [1784122169.024297416] [behavior_server]: Configuring backup
-[component_container_isolated-1] [INFO] [1784122169.026216336] [behavior_server]: Creating behavior plugin drive_on_heading of type nav2_behaviors/DriveOnHeading
-[component_container_isolated-1] [INFO] [1784122169.026670190] [behavior_server]: Configuring drive_on_heading
-[component_container_isolated-1] [INFO] [1784122169.028425903] [behavior_server]: Creating behavior plugin wait of type nav2_behaviors/Wait
-[component_container_isolated-1] [INFO] [1784122169.028814933] [behavior_server]: Configuring wait
-[component_container_isolated-1] [INFO] [1784122169.030547790] [lifecycle_manager_navigation]: [34m[1mConfiguring bt_navigator[0m[0m
-[component_container_isolated-1] [INFO] [1784122169.030641190] [bt_navigator]: Configuring
-[component_container_isolated-1] [INFO] [1784122169.069454168] [global_costmap.global_costmap]: StaticLayer: Resizing costmap to 30 X 66 at 0.150000 m/pix
-[component_container_isolated-1] [INFO] [1784122169.106257394] [lifecycle_manager_navigation]: [34m[1mConfiguring waypoint_follower[0m[0m
-[component_container_isolated-1] [INFO] [1784122169.106330284] [waypoint_follower]: Configuring
-[component_container_isolated-1] [INFO] [1784122169.121487240] [waypoint_follower]: Created waypoint_task_executor : wait_at_waypoint of type nav2_waypoint_follower::WaitAtWaypoint
-[component_container_isolated-1] [INFO] [1784122169.121834770] [lifecycle_manager_navigation]: [34m[1mConfiguring velocity_smoother[0m[0m
-[component_container_isolated-1] [INFO] [1784122169.121920950] [velocity_smoother]: Configuring velocity smoother
-[component_container_isolated-1] [INFO] [1784122169.124631085] [lifecycle_manager_navigation]: [34m[1mActivating controller_server[0m[0m
-[component_container_isolated-1] [INFO] [1784122169.124721270] [controller_server]: Activating
-[component_container_isolated-1] [INFO] [1784122169.124744154] [local_costmap.local_costmap]: Activating
-[component_container_isolated-1] [INFO] [1784122169.124751913] [local_costmap.local_costmap]: Checking transform
-[component_container_isolated-1] [INFO] [1784122169.124766410] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122169.624872211] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122170.124960337] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122170.624823354] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122171.124817939] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122171.624923046] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122172.124816536] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122172.197365432] [amcl]: createLaserObject
-[component_container_isolated-1] [INFO] [1784122172.624879532] [local_costmap.local_costmap]: start
-[component_container_isolated-1] [INFO] [1784122172.625854511] [local_costmap.local_costmap]: stvl_local was activated.
-[component_container_isolated-1] [WARN] [1784122172.826251834] [controller_server]: Parameter controller_server.verbose not found
-[component_container_isolated-1] [INFO] [1784122172.836368611] [controller_server]: Optimizer reset
-[component_container_isolated-1] [INFO] [1784122172.836641895] [MPPIController]: Activated MPPI Controller: FollowPath
-[component_container_isolated-1] [INFO] [1784122172.836662596] [controller_server]: Creating bond (controller_server) to lifecycle manager.
-[component_container_isolated-1] [INFO] [1784122172.940375496] [lifecycle_manager_navigation]: Server controller_server connected with bond.
-[component_container_isolated-1] [INFO] [1784122172.940419955] [lifecycle_manager_navigation]: [34m[1mActivating smoother_server[0m[0m
-[component_container_isolated-1] [INFO] [1784122172.940643717] [smoother_server]: Activating
-[component_container_isolated-1] [INFO] [1784122172.940685353] [smoother_server]: Creating bond (smoother_server) to lifecycle manager.
-[component_container_isolated-1] [INFO] [1784122173.045128084] [lifecycle_manager_navigation]: Server smoother_server connected with bond.
-[component_container_isolated-1] [INFO] [1784122173.045172502] [lifecycle_manager_navigation]: [34m[1mActivating planner_server[0m[0m
-[component_container_isolated-1] [INFO] [1784122173.045395975] [planner_server]: Activating
-[component_container_isolated-1] [INFO] [1784122173.045451476] [global_costmap.global_costmap]: Activating
-[component_container_isolated-1] [INFO] [1784122173.045468092] [global_costmap.global_costmap]: Checking transform
-[component_container_isolated-1] [INFO] [1784122173.045480332] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122173.545540868] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122174.045589688] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122174.094731428] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122174.545540837] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122175.045574420] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122175.545541835] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122176.045541398] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122176.275732983] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122176.545540168] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122177.045586708] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122177.545540908] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122178.045548890] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122178.420652100] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122178.545542800] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122179.045575926] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122179.545580930] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122180.045580459] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122180.545575814] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122180.611833400] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122181.045541241] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122181.545541799] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122182.045542410] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122182.545540792] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122182.816036685] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122183.045562942] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122183.545588080] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122184.045542471] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122184.545542054] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122185.010054874] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122185.045543396] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122185.545581351] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122186.045542291] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122186.545540808] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122187.045593522] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122187.169016464] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122187.545519812] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122188.045542414] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122188.545541692] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122189.045575828] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122189.354916064] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122189.545541865] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122190.045578967] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122190.545543493] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122191.045581465] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122191.539169025] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122191.545542904] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122192.045540850] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122192.545545505] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122193.045541696] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122193.545575989] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122193.732090278] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122194.045583661] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122194.545545522] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122195.045540730] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122195.545543574] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122195.882517898] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122196.045541055] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122196.545559950] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122197.045536853] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122197.545573949] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122198.045538804] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122198.062514856] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122198.545569330] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122199.045569468] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122199.545569289] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122200.045559863] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122200.244849755] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122200.545541041] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122201.045578487] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122201.545541363] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122202.045542341] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122202.438744662] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122202.545545137] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122203.045540209] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122203.545580730] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122204.045541500] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122204.545518072] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122204.584684318] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122205.045580317] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122205.545541842] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122206.045576845] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122206.545607610] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122206.791431599] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122207.045548190] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122207.545541871] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122208.045541950] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122208.545581082] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122208.986195408] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122209.045544874] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122209.545580877] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122210.045541659] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122210.545537690] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122211.045542222] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122211.179990007] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122211.545528650] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122212.045576048] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122212.545542609] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122213.045581674] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122213.368827985] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122213.545544125] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122214.045584759] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122214.545543840] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122215.045575431] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122215.512098525] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122215.545543827] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122216.045541995] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122216.545542984] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122217.045544137] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122217.545531870] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122217.704595027] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122218.045543474] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122218.545541557] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122219.045575785] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122219.545580591] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122219.871003179] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122220.045577493] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122220.545546437] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122221.045541468] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122221.545579447] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122222.045541994] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122222.045799341] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122222.545542438] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122223.045595720] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122223.545541971] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122224.045540956] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122224.196758404] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122224.545579428] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122225.045540942] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122225.545556373] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122226.045577918] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122226.369122466] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122226.545575970] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122227.045540077] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122227.545579585] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122228.045541808] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122228.542722102] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122228.545542808] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122229.045540877] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122229.545540934] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122230.045540555] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
+[component_container_isolated-2] [INFO] [1789770899.481656401] [lifecycle_manager_navigation]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.490509821] [lifecycle_manager_navigation]: [34m[1mStarting managed nodes bringup...[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.490556612] [lifecycle_manager_navigation]: [34m[1mConfiguring controller_server[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.490687779] [controller_server]: Configuring controller interface
+[component_container_isolated-2] [INFO] [1789770899.490957491] [controller_server]: getting goal checker plugins..
+[component_container_isolated-2] [INFO] [1789770899.491099438] [controller_server]: Controller frequency set to 20.0000Hz
+[component_container_isolated-2] [INFO] [1789770899.491143483] [local_costmap.local_costmap]: Configuring
+[component_container_isolated-2] [INFO] [1789770899.494383823] [local_costmap.local_costmap]: Using plugin "obstacle_layer"
+[component_container_isolated-2] [INFO] [1789770899.496669224] [local_costmap.local_costmap]: Subscribed to Topics: front_scan rear_scan
+[component_container_isolated-2] [INFO] [1789770899.499963857] [local_costmap.local_costmap]: Initialized plugin "obstacle_layer"
+[component_container_isolated-2] [INFO] [1789770899.499995626] [local_costmap.local_costmap]: Using plugin "stvl_local"
+[component_container_isolated-2] [INFO] [1789770899.516795290] [local_costmap.local_costmap]: stvl_local being initialized as SpatioTemporalVoxelLayer!
+[component_container_isolated-2] [INFO] [1789770899.516825633] [local_costmap.local_costmap]: stvl_local's global frame is odom.
+[component_container_isolated-2] [INFO] [1789770899.517511019] [local_costmap.local_costmap]: stvl_local loaded parameters from parameter server.
+[component_container_isolated-2] [INFO] [1789770899.518839820] [local_costmap.local_costmap]: stvl_local created underlying voxel grid.
+[component_container_isolated-2] [INFO] [1789770899.520103735] [local_costmap.local_costmap]: Voxel filter activated.
+[component_container_isolated-2] [INFO] [1789770899.521820100] [local_costmap.local_costmap]: stvl_local initialization complete!
+[component_container_isolated-2] [INFO] [1789770899.521845070] [local_costmap.local_costmap]: Initialized plugin "stvl_local"
+[component_container_isolated-2] [INFO] [1789770899.521851830] [local_costmap.local_costmap]: Using plugin "inflation_layer"
+[component_container_isolated-2] [INFO] [1789770899.522350739] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[component_container_isolated-2] [INFO] [1789770899.526691031] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[component_container_isolated-2] [INFO] [1789770899.527663139] [controller_server]: Created goal checker : general_goal_checker of type nav2_controller::SimpleGoalChecker
+[component_container_isolated-2] [INFO] [1789770899.528097497] [controller_server]: Controller Server has general_goal_checker  goal checkers available.
+[component_container_isolated-2] [INFO] [1789770899.529334160] [controller_server]: Created controller : FollowPath of type nav2_mppi_controller::MPPIController
+[component_container_isolated-2] [INFO] [1789770899.532082740] [controller_server]: [SLIP] MPPI variant = 'vanilla'
+[component_container_isolated-2] [INFO] [1789770899.532222962] [controller_server]: Controller period is equal to model dt. Control sequence shifting is ON
+[component_container_isolated-2] [INFO] [1789770899.533977380] [controller_server]: ConstraintCritic instantiated with 1 power and 4.000000 weight.
+[component_container_isolated-2] [INFO] [1789770899.534029293] [controller_server]: Critic loaded : mppi::critics::ConstraintCritic
+[component_container_isolated-2] [INFO] [1789770899.534932873] [controller_server]: InflationCostCritic instantiated with 1 power and 300.000000 / 0.015000 weights. Critic will collision check based on footprint cost.
+[component_container_isolated-2] [INFO] [1789770899.534960222] [controller_server]: Critic loaded : mppi::critics::CostCritic
+[component_container_isolated-2] [INFO] [1789770899.535423023] [controller_server]: GoalCritic instantiated with 1 power and 5.000000 weight.
+[component_container_isolated-2] [INFO] [1789770899.535450586] [controller_server]: Critic loaded : mppi::critics::GoalCritic
+[component_container_isolated-2] [INFO] [1789770899.535979686] [controller_server]: GoalAngleCritic instantiated with 1 power, 3.000000 weight, 0.500000 angular threshold and symmetric_yaw_tolerance disabled
+[component_container_isolated-2] [INFO] [1789770899.536001717] [controller_server]: Critic loaded : mppi::critics::GoalAngleCritic
+[component_container_isolated-2] [INFO] [1789770899.536886297] [controller_server]: ReferenceTrajectoryCritic instantiated with 1 power and 3.000000 weight
+[component_container_isolated-2] [INFO] [1789770899.536909071] [controller_server]: Critic loaded : mppi::critics::PathAlignCritic
+[component_container_isolated-2] [INFO] [1789770899.537495670] [controller_server]: Critic loaded : mppi::critics::PathFollowCritic
+[component_container_isolated-2] [INFO] [1789770899.538230465] [controller_server]: PathAngleCritic instantiated with 1 power and 2.000000 weight. Reversing allowed.
+[component_container_isolated-2] [INFO] [1789770899.538250317] [controller_server]: Critic loaded : mppi::critics::PathAngleCritic
+[component_container_isolated-2] [INFO] [1789770899.538733582] [controller_server]: PreferForwardCritic instantiated with 1 power and 2.000000 weight.
+[component_container_isolated-2] [INFO] [1789770899.538755433] [controller_server]: Critic loaded : mppi::critics::PreferForwardCritic
+[component_container_isolated-2] [INFO] [1789770899.540115840] [lifecycle_manager_localization]: Server map_server connected with bond.
+[component_container_isolated-2] [INFO] [1789770899.540149617] [lifecycle_manager_localization]: [34m[1mActivating amcl[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.540343444] [amcl]: Activating
+[component_container_isolated-2] [INFO] [1789770899.540385319] [amcl]: Creating bond (amcl) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770899.542644580] [amcl]: initialPoseReceived
+[component_container_isolated-2] [INFO] [1789770899.542729523] [amcl]: Setting pose (0.000000): -2.250 1.000 1.571
+[component_container_isolated-2] [INFO] [1789770899.543302839] [amcl]: initialPoseReceived
+[component_container_isolated-2] [INFO] [1789770899.543315937] [amcl]: Setting pose (0.000000): -2.250 1.000 1.571
+[component_container_isolated-2] [INFO] [1789770899.548738344] [controller_server]: Optimizer reset
+[component_container_isolated-2] [INFO] [1789770899.551888502] [MPPIController]: Configured MPPI Controller: FollowPath
+[component_container_isolated-2] [INFO] [1789770899.551910477] [controller_server]: Controller Server has FollowPath  controllers available.
+[component_container_isolated-2] [INFO] [1789770899.552515115] [amcl]: initialPoseReceived
+[component_container_isolated-2] [INFO] [1789770899.552573206] [amcl]: Setting pose (0.000000): -2.250 1.000 1.571
+[component_container_isolated-2] [INFO] [1789770899.557935692] [lifecycle_manager_navigation]: [34m[1mConfiguring smoother_server[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.558041296] [smoother_server]: Configuring smoother server
+[component_container_isolated-2] [INFO] [1789770899.560996971] [smoother_server]: Created smoother : simple_smoother of type nav2_smoother::SimpleSmoother
+[component_container_isolated-2] [INFO] [1789770899.561402102] [smoother_server]: Smoother Server has simple_smoother  smoothers available.
+[component_container_isolated-2] [INFO] [1789770899.565567046] [lifecycle_manager_navigation]: [34m[1mConfiguring planner_server[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.565685579] [planner_server]: Configuring
+[component_container_isolated-2] [INFO] [1789770899.565728985] [global_costmap.global_costmap]: Configuring
+[component_container_isolated-2] [INFO] [1789770899.568606053] [global_costmap.global_costmap]: Using plugin "static_layer"
+[component_container_isolated-2] [INFO] [1789770899.569277501] [global_costmap.global_costmap]: Subscribing to the map topic (/map) with transient local durability
+[component_container_isolated-2] [INFO] [1789770899.569744944] [global_costmap.global_costmap]: Subscribing to updates
+[component_container_isolated-2] [INFO] [1789770899.570133123] [global_costmap.global_costmap]: Initialized plugin "static_layer"
+[component_container_isolated-2] [INFO] [1789770899.570154587] [global_costmap.global_costmap]: Using plugin "obstacle_layer"
+[component_container_isolated-2] [INFO] [1789770899.570873212] [global_costmap.global_costmap]: Subscribed to Topics: front_scan rear_scan
+[component_container_isolated-2] [INFO] [1789770899.576197941] [global_costmap.global_costmap]: Initialized plugin "obstacle_layer"
+[component_container_isolated-2] [INFO] [1789770899.576226367] [global_costmap.global_costmap]: Using plugin "stvl_global"
+[component_container_isolated-2] [INFO] [1789770899.576452144] [global_costmap.global_costmap]: stvl_global being initialized as SpatioTemporalVoxelLayer!
+[component_container_isolated-2] [INFO] [1789770899.576467368] [global_costmap.global_costmap]: stvl_global's global frame is map.
+[component_container_isolated-2] [INFO] [1789770899.577857754] [global_costmap.global_costmap]: stvl_global loaded parameters from parameter server.
+[component_container_isolated-2] [INFO] [1789770899.579070366] [global_costmap.global_costmap]: stvl_global created underlying voxel grid.
+[component_container_isolated-2] [INFO] [1789770899.581067224] [global_costmap.global_costmap]: Voxel filter activated.
+[component_container_isolated-2] [INFO] [1789770899.582286955] [global_costmap.global_costmap]: stvl_global initialization complete!
+[component_container_isolated-2] [INFO] [1789770899.582304562] [global_costmap.global_costmap]: Initialized plugin "stvl_global"
+[component_container_isolated-2] [INFO] [1789770899.582310709] [global_costmap.global_costmap]: Using plugin "inflation_layer"
+[component_container_isolated-2] [INFO] [1789770899.582785926] [global_costmap.global_costmap]: Initialized plugin "inflation_layer"
+[component_container_isolated-2] [INFO] [1789770899.585579616] [planner_server]: Created global planner plugin GridBased of type nav2_navfn_planner/NavfnPlanner
+[component_container_isolated-2] [INFO] [1789770899.585601618] [planner_server]: Configuring plugin GridBased of type NavfnPlanner
+[component_container_isolated-2] [INFO] [1789770899.585962870] [planner_server]: Planner Server has GridBased  planners available.
+[component_container_isolated-2] [INFO] [1789770899.589332940] [lifecycle_manager_navigation]: [34m[1mConfiguring behavior_server[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.589448618] [behavior_server]: Configuring
+[component_container_isolated-2] [INFO] [1789770899.591908880] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors/Spin
+[component_container_isolated-2] [INFO] [1789770899.592501856] [behavior_server]: Configuring spin
+[component_container_isolated-2] [INFO] [1789770899.594893104] [behavior_server]: Creating behavior plugin backup of type nav2_behaviors/BackUp
+[component_container_isolated-2] [INFO] [1789770899.595474334] [behavior_server]: Configuring backup
+[component_container_isolated-2] [INFO] [1789770899.597710982] [behavior_server]: Creating behavior plugin drive_on_heading of type nav2_behaviors/DriveOnHeading
+[component_container_isolated-2] [INFO] [1789770899.598262020] [behavior_server]: Configuring drive_on_heading
+[component_container_isolated-2] [INFO] [1789770899.600391808] [behavior_server]: Creating behavior plugin wait of type nav2_behaviors/Wait
+[component_container_isolated-2] [INFO] [1789770899.600839774] [behavior_server]: Configuring wait
+[component_container_isolated-2] [INFO] [1789770899.602960561] [lifecycle_manager_navigation]: [34m[1mConfiguring bt_navigator[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.603054646] [bt_navigator]: Configuring
+[component_container_isolated-2] [INFO] [1789770899.639738656] [global_costmap.global_costmap]: StaticLayer: Resizing costmap to 30 X 78 at 0.150000 m/pix
+[component_container_isolated-2] [INFO] [1789770899.643130491] [lifecycle_manager_localization]: Server amcl connected with bond.
+[component_container_isolated-2] [INFO] [1789770899.643155025] [lifecycle_manager_localization]: [34m[1mManaged nodes are active[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.643168390] [lifecycle_manager_localization]: [34m[1mCreating bond timer...[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.648635422] [lifecycle_manager_navigation]: [34m[1mConfiguring waypoint_follower[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.648744249] [waypoint_follower]: Configuring
+[component_container_isolated-2] [INFO] [1789770899.652927091] [waypoint_follower]: Created waypoint_task_executor : wait_at_waypoint of type nav2_waypoint_follower::WaitAtWaypoint
+[component_container_isolated-2] [INFO] [1789770899.653495330] [lifecycle_manager_navigation]: [34m[1mConfiguring velocity_smoother[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.653577083] [velocity_smoother]: Configuring velocity smoother
+[component_container_isolated-2] [INFO] [1789770899.655192082] [lifecycle_manager_navigation]: [34m[1mActivating controller_server[0m[0m
+[component_container_isolated-2] [INFO] [1789770899.655301660] [controller_server]: Activating
+[component_container_isolated-2] [INFO] [1789770899.655345043] [local_costmap.local_costmap]: Activating
+[component_container_isolated-2] [INFO] [1789770899.655363833] [local_costmap.local_costmap]: Checking transform
+[component_container_isolated-2] [INFO] [1789770899.655394846] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Could not find a connection between 'odom' and 'base_link' because they are not part of the same tree.Tf has two or more unconnected trees.
+[component_container_isolated-2] [INFO] [1789770900.081473932] [amcl]: createLaserObject
+[component_container_isolated-2] [INFO] [1789770900.155696824] [local_costmap.local_costmap]: start
+[component_container_isolated-2] [INFO] [1789770900.157030677] [local_costmap.local_costmap]: stvl_local was activated.
+[component_container_isolated-2] [WARN] [1789770900.407688763] [controller_server]: Parameter controller_server.verbose not found
+[component_container_isolated-2] [INFO] [1789770900.412337433] [controller_server]: Optimizer reset
+[component_container_isolated-2] [INFO] [1789770900.412570894] [MPPIController]: Activated MPPI Controller: FollowPath
+[component_container_isolated-2] [INFO] [1789770900.412589047] [controller_server]: Creating bond (controller_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770900.514771543] [lifecycle_manager_navigation]: Server controller_server connected with bond.
+[component_container_isolated-2] [INFO] [1789770900.514814241] [lifecycle_manager_navigation]: [34m[1mActivating smoother_server[0m[0m
+[component_container_isolated-2] [INFO] [1789770900.515076243] [smoother_server]: Activating
+[component_container_isolated-2] [INFO] [1789770900.515113603] [smoother_server]: Creating bond (smoother_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770900.618691765] [lifecycle_manager_navigation]: Server smoother_server connected with bond.
+[component_container_isolated-2] [INFO] [1789770900.618732501] [lifecycle_manager_navigation]: [34m[1mActivating planner_server[0m[0m
+[component_container_isolated-2] [INFO] [1789770900.618942558] [planner_server]: Activating
+[component_container_isolated-2] [INFO] [1789770900.618976911] [global_costmap.global_costmap]: Activating
+[component_container_isolated-2] [INFO] [1789770900.618982933] [global_costmap.global_costmap]: Checking transform
+[component_container_isolated-2] [INFO] [1789770900.619001741] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Lookup would require extrapolation into the past.  Requested time 2.735000 but the earliest data is at time 2.741000, when looking up transform from frame [base_link] to frame [map]
+[component_container_isolated-2] [INFO] [1789770901.119122871] [global_costmap.global_costmap]: start
+[component_container_isolated-2] [INFO] [1789770901.120395072] [global_costmap.global_costmap]: stvl_global was activated.
+[component_container_isolated-2] [INFO] [1789770902.120936758] [planner_server]: Activating plugin GridBased of type NavfnPlanner
+[component_container_isolated-2] [INFO] [1789770902.121774660] [planner_server]: Creating bond (planner_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770902.224642523] [lifecycle_manager_navigation]: Server planner_server connected with bond.
+[component_container_isolated-2] [INFO] [1789770902.224681043] [lifecycle_manager_navigation]: [34m[1mActivating behavior_server[0m[0m
+[component_container_isolated-2] [INFO] [1789770902.224886624] [behavior_server]: Activating
+[component_container_isolated-2] [INFO] [1789770902.224905304] [behavior_server]: Activating spin
+[component_container_isolated-2] [INFO] [1789770902.224919161] [behavior_server]: Activating backup
+[component_container_isolated-2] [INFO] [1789770902.224925330] [behavior_server]: Activating drive_on_heading
+[component_container_isolated-2] [INFO] [1789770902.224931206] [behavior_server]: Activating wait
+[component_container_isolated-2] [INFO] [1789770902.224938739] [behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770902.328203821] [lifecycle_manager_navigation]: Server behavior_server connected with bond.
+[component_container_isolated-2] [INFO] [1789770902.328240188] [lifecycle_manager_navigation]: [34m[1mActivating bt_navigator[0m[0m
+[component_container_isolated-2] [INFO] [1789770902.328436502] [bt_navigator]: Activating
+[component_container_isolated-2] [INFO] [1789770902.352065935] [bt_navigator]: Creating bond (bt_navigator) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770902.360892288] [controller_server]: Optimizer reset
+[component_container_isolated-2] [INFO] [1789770902.456050643] [lifecycle_manager_navigation]: Server bt_navigator connected with bond.
+[component_container_isolated-2] [INFO] [1789770902.456088668] [lifecycle_manager_navigation]: [34m[1mActivating waypoint_follower[0m[0m
+[component_container_isolated-2] [INFO] [1789770902.456326665] [waypoint_follower]: Activating
+[component_container_isolated-2] [INFO] [1789770902.456369392] [waypoint_follower]: Creating bond (waypoint_follower) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770902.559007826] [lifecycle_manager_navigation]: Server waypoint_follower connected with bond.
+[component_container_isolated-2] [INFO] [1789770902.559044744] [lifecycle_manager_navigation]: [34m[1mActivating velocity_smoother[0m[0m
+[component_container_isolated-2] [INFO] [1789770902.559273783] [velocity_smoother]: Activating
+[component_container_isolated-2] [INFO] [1789770902.559311426] [velocity_smoother]: Creating bond (velocity_smoother) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770902.662352769] [lifecycle_manager_navigation]: Server velocity_smoother connected with bond.
+[component_container_isolated-2] [INFO] [1789770902.662384489] [lifecycle_manager_navigation]: [34m[1mManaged nodes are active[0m[0m
+[component_container_isolated-2] [INFO] [1789770902.662389278] [lifecycle_manager_navigation]: [34m[1mCreating bond timer...[0m[0m
+[component_container_isolated-2] [INFO] [1789770902.894780187] [global_costmap.global_costmap]: Message Filter dropping message: frame 'front_lidar_1' at time 4.664 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[component_container_isolated-2] [INFO] [1789770904.377122992] [bt_navigator]: Begin navigating from current location (-2.25, 1.00) to (-1.12, 9.52)
+[component_container_isolated-2] [INFO] [1789770904.397876748] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [WARN] [1789770904.397943529] [controller_server]: No goal checker was specified in parameter 'current_goal_checker'. Server will use only plugin loaded general_goal_checker . This warning will appear once.
+[component_container_isolated-2] [INFO] [1789770904.401305733] [controller_server]: Optimizer reset
+[component_container_isolated-2] [ERROR] [1789770904.471947400] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770904.472040440] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770904.472092942] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770904.487601042] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1789770904.488824863] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [ERROR] [1789770904.569110659] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770904.569202244] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770904.569250341] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770904.587403905] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1789770904.587590144] [global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[component_container_isolated-2] [WARN] [1789770905.128220619] [planner_server]: Planner loop missed its desired rate of 20.0000 Hz. Current loop rate is 2.5000 Hz
+[component_container_isolated-2] [INFO] [1789770905.147910345] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [ERROR] [1789770905.208900393] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770905.209005744] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770905.209071008] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770905.227404628] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1789770905.227960216] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [ERROR] [1789770905.429489606] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770905.429593621] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770905.429656175] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770905.447654322] [behavior_server]: Running spin
+[component_container_isolated-2] [INFO] [1789770905.447742774] [behavior_server]: Turning 1.57 for spin behavior.
+[ground_truth_localizer-1] [INFO] [1789770908.310291368] [ground_truth_localizer]: last 10 s: ground truth msgs 252, map->odom published 252 (235 via latest odom TF)
+[component_container_isolated-2] [INFO] [1789770909.147965757] [behavior_server]: spin completed successfully
+[component_container_isolated-2] [INFO] [1789770909.197801412] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [INFO] [1789770909.203752091] [controller_server]: Optimizer reset
+[component_container_isolated-2] [ERROR] [1789770909.285427128] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770909.285541908] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770909.285606042] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770909.297443542] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1789770909.297846645] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [ERROR] [1789770909.388560829] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770909.388659676] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770909.388712500] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770909.407872632] [behavior_server]: Running wait
+[component_container_isolated-2] [INFO] [1789770914.408100695] [behavior_server]: wait completed successfully
+[component_container_isolated-2] [INFO] [1789770914.457755661] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [INFO] [1789770914.462942735] [controller_server]: Optimizer reset
+[component_container_isolated-2] [ERROR] [1789770914.473208669] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770914.473295382] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770914.473348305] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770914.487475971] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1789770914.487910966] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [ERROR] [1789770914.578416812] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770914.578498716] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770914.578524810] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770914.597776620] [behavior_server]: Running backup
+[component_container_isolated-2] [INFO] [1789770914.597934044] [behavior_server]: DriveOnHeading: no acceleration or deceleration limits set
+[component_container_isolated-2] [ERROR] [1789770914.699699081] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 6.855000, when looking up transform from frame [base_link] to frame [odom]
+[component_container_isolated-2] 
+[component_container_isolated-2] [ERROR] [1789770914.699771464] [behavior_server]: Current footprint not available.
+[component_container_isolated-2] [WARN] [1789770914.699823169] [behavior_server]: Collision Ahead - Exiting DriveOnHeading
+[component_container_isolated-2] [WARN] [1789770914.699829114] [behavior_server]: backup failed
+[component_container_isolated-2] [WARN] [1789770914.699837002] [behavior_server]: [backup] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770914.717443695] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1789770914.717888957] [global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[component_container_isolated-2] [WARN] [1789770915.128518248] [planner_server]: Planner loop missed its desired rate of 20.0000 Hz. Current loop rate is 2.5000 Hz
+[component_container_isolated-2] [INFO] [1789770915.147832013] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [ERROR] [1789770915.229481249] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770915.229598380] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770915.229655861] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770915.247627584] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1789770915.248512891] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [ERROR] [1789770915.449926946] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770915.450040468] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770915.450092422] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770915.467803567] [behavior_server]: Running spin
+[component_container_isolated-2] [INFO] [1789770915.467895977] [behavior_server]: Turning 1.57 for spin behavior.
+[component_container_isolated-2] [ERROR] [1789770915.769476770] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 7.807000, when looking up transform from frame [base_link] to frame [odom]
+[component_container_isolated-2] 
+[component_container_isolated-2] [ERROR] [1789770915.769559503] [behavior_server]: Current footprint not available.
+[component_container_isolated-2] [WARN] [1789770915.769616301] [behavior_server]: Collision Ahead - Exiting Spin
+[component_container_isolated-2] [WARN] [1789770915.769630065] [behavior_server]: spin failed
+[component_container_isolated-2] [WARN] [1789770915.769645184] [behavior_server]: [spin] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770915.787708015] [behavior_server]: Running wait
+[ground_truth_localizer-1] [INFO] [1789770919.138314087] [ground_truth_localizer]: last 10 s: ground truth msgs 295, map->odom published 295 (267 via latest odom TF)
+[component_container_isolated-2] [INFO] [1789770920.787916140] [behavior_server]: wait completed successfully
+[component_container_isolated-2] [INFO] [1789770920.837647600] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [INFO] [1789770920.841784803] [controller_server]: Optimizer reset
+[component_container_isolated-2] [ERROR] [1789770920.872147541] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770920.872213861] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770920.872239890] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770920.887480432] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1789770920.887812186] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [ERROR] [1789770920.988341690] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770920.988418515] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770920.988453143] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770921.007622356] [behavior_server]: Running backup
+[component_container_isolated-2] [ERROR] [1789770921.108691059] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 12.771000, when looking up transform from frame [base_link] to frame [odom]
+[component_container_isolated-2] 
+[component_container_isolated-2] [ERROR] [1789770921.108765434] [behavior_server]: Current footprint not available.
+[component_container_isolated-2] [WARN] [1789770921.108822878] [behavior_server]: Collision Ahead - Exiting DriveOnHeading
+[component_container_isolated-2] [WARN] [1789770921.108836763] [behavior_server]: backup failed
+[component_container_isolated-2] [WARN] [1789770921.108850626] [behavior_server]: [backup] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770921.127361630] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1789770921.127621983] [global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[component_container_isolated-2] [WARN] [1789770922.128135201] [planner_server]: Planner loop missed its desired rate of 20.0000 Hz. Current loop rate is 1.1111 Hz
+[component_container_isolated-2] [INFO] [1789770922.147561222] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [INFO] [1789770922.152669831] [controller_server]: Optimizer reset
+[component_container_isolated-2] [ERROR] [1789770922.162848671] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770922.162951822] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770922.163008583] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [INFO] [1789770922.177417463] [local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[component_container_isolated-2] [INFO] [1789770922.177759580] [controller_server]: Received a goal, begin computing control effort.
+[component_container_isolated-2] [ERROR] [1789770922.388356812] [controller_server]: Exception in transformPose: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.741000, when looking up transform from frame [odom] to frame [map]
+[component_container_isolated-2] [ERROR] [1789770922.388459231] [controller_server]: Unable to transform robot pose into global plan's frame
+[component_container_isolated-2] [WARN] [1789770922.388516313] [controller_server]: [follow_path] [ActionServer] Aborting handle.
+[component_container_isolated-2] [WARN] [1789770922.417268784] [bt_navigator]: [navigate_to_pose] [ActionServer] Aborting handle.
+[component_container_isolated-2] [ERROR] [1789770922.417355964] [bt_navigator]: Goal failed
 [WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
-[component_container_isolated-1] [INFO] [1784122230.119518157] [rclcpp]: signal_handler(SIGINT/SIGTERM)
-[component_container_isolated-1] [INFO] [1784122230.119622838] [lifecycle_manager_navigation]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_navigation)
-[component_container_isolated-1] [INFO] [1784122230.545542781] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122230.711314261] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122231.045540939] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122231.545572066] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122232.045570306] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122232.545535064] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122232.850538369] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122233.045568298] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122233.545567384] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122234.045536490] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122234.545566685] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122235.018365302] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122235.045541541] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122235.545540432] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[ERROR] [component_container_isolated-1]: process[component_container_isolated-1] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
-[INFO] [component_container_isolated-1]: sending signal 'SIGTERM' to process[component_container_isolated-1]
-[component_container_isolated-1] [INFO] [1784122236.045573417] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122236.545542250] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122237.045541696] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122237.184756952] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122237.545542496] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122238.045543387] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122238.545544584] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122239.045543669] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [WARN] [1784122239.357972481] [amcl]: AMCL cannot publish a pose or update the transform. Please set the initial pose...
-[component_container_isolated-1] [INFO] [1784122239.545540801] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122240.045578471] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[component_container_isolated-1] [INFO] [1784122240.545541416] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Invalid frame ID "map" passed to canTransform argument target_frame - frame does not exist
-[ERROR] [component_container_isolated-1]: process[component_container_isolated-1] failed to terminate '10.0' seconds after receiving 'SIGTERM', escalating to 'SIGKILL'
-[INFO] [component_container_isolated-1]: sending signal 'SIGKILL' to process[component_container_isolated-1]
-[ERROR] [component_container_isolated-1]: process has died [pid 116334, exit code -9, cmd '/opt/ros/humble/lib/rclcpp_components/component_container_isolated --ros-args --log-level info --ros-args -r __node:=nav2_container --params-file /tmp/launch_params_f2ip6tuj --params-file /tmp/launch_params_a9u74eut -r /tf:=tf -r /tf_static:=tf_static'].
+[component_container_isolated-2] [INFO] [1789770922.418139547] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[component_container_isolated-2] [INFO] [1789770922.418198376] [behavior_server]: Running Nav2 LifecycleNode rcl preshutdown (behavior_server)
+[component_container_isolated-2] [INFO] [1789770922.418267495] [behavior_server]: Deactivating
+[component_container_isolated-2] [INFO] [1789770922.418299344] [behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[ground_truth_localizer-1] Exception ignored in: <function TransformListener.__del__ at 0x71519c468f70>
+[ground_truth_localizer-1] Traceback (most recent call last):
+[ground_truth_localizer-1]   File "/opt/ros/humble/lib/python3.10/site-packages/tf2_ros/transform_listener.py", line 119, in __del__
+[ground_truth_localizer-1]     self.executor.shutdown()
+[ground_truth_localizer-1]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 264, in shutdown
+[ground_truth_localizer-1]     self._sigint_gc.destroy()
+[ground_truth_localizer-1]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/signals.py", line 65, in destroy
+[ground_truth_localizer-1]     with self.handle:
+[ground_truth_localizer-1] rclpy._rclpy_pybind11.InvalidHandle: cannot use Destroyable because destruction was requested
+[component_container_isolated-2] [INFO] [1789770922.428615416] [behavior_server]: Cleaning up
+[component_container_isolated-2] [INFO] [1789770922.435544761] [behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770922.435573195] [lifecycle_manager_navigation]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_navigation)
+[component_container_isolated-2] [INFO] [1789770922.435583872] [lifecycle_manager_navigation]: [34m[1mTerminating bond timer...[0m[0m
+[component_container_isolated-2] [INFO] [1789770922.540732186] [waypoint_follower]: Running Nav2 LifecycleNode rcl preshutdown (waypoint_follower)
+[component_container_isolated-2] [INFO] [1789770922.540773672] [waypoint_follower]: Deactivating
+[component_container_isolated-2] [INFO] [1789770922.540786470] [waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[INFO] [ground_truth_localizer-1]: process has finished cleanly [pid 91123]
+[component_container_isolated-2] [INFO] [1789770922.550884402] [waypoint_follower]: Cleaning up
+[component_container_isolated-2] [INFO] [1789770922.555049650] [waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770922.555074019] [planner_server]: Running Nav2 LifecycleNode rcl preshutdown (planner_server)
+[component_container_isolated-2] [INFO] [1789770922.555086561] [planner_server]: Deactivating
+[component_container_isolated-2] [INFO] [1789770922.555107111] [global_costmap.global_costmap]: Deactivating
+[component_container_isolated-2] [INFO] [1789770922.555724359] [global_costmap.global_costmap]: stvl_global was deactivated.
+[component_container_isolated-2] [INFO] [1789770923.119459868] [planner_server]: Deactivating plugin GridBased of type NavfnPlanner
+[component_container_isolated-2] [INFO] [1789770923.119498336] [planner_server]: Destroying bond (planner_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789770923.129594558] [planner_server]: Cleaning up
+[component_container_isolated-2] [INFO] [1789770923.141711209] [global_costmap.global_costmap]: Cleaning up
+[ERROR] [component_container_isolated-2]: process[component_container_isolated-2] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+[INFO] [component_container_isolated-2]: sending signal 'SIGTERM' to process[component_container_isolated-2]
+[ERROR] [component_container_isolated-2]: process[component_container_isolated-2] failed to terminate '10.0' seconds after receiving 'SIGTERM', escalating to 'SIGKILL'
+[INFO] [component_container_isolated-2]: sending signal 'SIGKILL' to process[component_container_isolated-2]
+[ERROR] [component_container_isolated-2]: process has died [pid 91125, exit code -9, cmd '/opt/ros/humble/lib/rclcpp_components/component_container_isolated --ros-args --log-level info --ros-args -r __node:=nav2_container --params-file /tmp/launch_params_f_sfpr53 --params-file /tmp/launch_params_73v8tdyp -r /tf:=tf -r /tf_static:=tf_static'].

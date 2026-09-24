@@ -391,4 +391,28 @@ TEST(OptimizerSampling, FinalSmoothedSequenceUsesTheDynamicCollisionGeometry)
 
   EXPECT_FALSE(optimizer.finalSequenceIsDynamicallySafe());
 }
+
+TEST(OptimizerSampling, FinalVetoCatchesContactBetweenCriticSamplingPoints)
+{
+  SamplingOptimizer optimizer;
+  optimizer.configure(8, "equal", false);
+  optimizer.enableDynamicSafety();
+  auto & params = *optimizer.critics_data_.dynamic_obstacle_params;
+  params.point_step = 3u;  // The production YAML's cost-sampling interval.
+  params.disc_offset = 0.0f;
+  params.disc_radius = 0.01f;
+  optimizer.tracked_obstacles_snapshot_[0] = {0.05f, 0.0f, 0.0f, 0.0f, 0.01f};
+  optimizer.state_.speed.linear.x = 0.5;
+  optimizer.control_sequence_.vx.fill(0.5f);
+  optimizer.control_sequence_.wz.fill(0.0f);
+
+  // At model steps 1 and 4 the centre is 0.025 m and 0.10 m; at step 2 it
+  // crosses the obstacle centre. A stride-three check misses that contact.
+  const float x[] = {0.025f, 0.05f, 0.075f, 0.10f};
+  const float y[] = {0.0f, 0.0f, 0.0f, 0.0f};
+  const float yaw[] = {0.0f, 0.0f, 0.0f, 0.0f};
+  EXPECT_FALSE(tgmppi::scoreRolloutAgainstPredictions(
+    x, y, yaw, 4u, optimizer.tracked_obstacles_snapshot_, params).collides);
+  EXPECT_FALSE(optimizer.finalSequenceIsDynamicallySafe());
+}
 }  // namespace

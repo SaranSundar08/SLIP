@@ -14,8 +14,7 @@
 
 #include "nav2_tgmppi_controller/critics/prefer_forward_critic.hpp"
 #ifdef TGMPPI_WITH_CUDA
-#include <cstring>
-#include "nav2_tgmppi_controller/tools/gpu_rollout.hpp"
+#include "nav2_tgmppi_controller/tools/gpu_batch.hpp"
 #endif
 
 namespace tgmppi::critics
@@ -50,18 +49,21 @@ void PreferForwardCritic::score(CriticData & data)
 #ifdef TGMPPI_WITH_CUDA
   if (data.compute_backend == "cuda" && gpu_critics_.ready()) {
     auto cost_out = xt::xtensor<float, 1>::from_shape({data.costs.shape(0)});
-    if (data.gpu_rollout != nullptr) {
-      const auto * rollout = static_cast<const GpuRollout *>(data.gpu_rollout);
+    if (data.gpu_batch != nullptr) {
+      const auto * rollout = data.gpu_batch;
       auto cost_gpu = gpu_critics_.preferForwardCriticDevice(
         rollout->vx(), data.model_dt, weight_, power_);
-      auto cost_cpu = cost_gpu.to(torch::kCPU).contiguous();
-      std::memcpy(
-        cost_out.data(), cost_cpu.data_ptr<float>(), cost_out.size() * sizeof(float));
+      data.gpu_batch->addCosts(cost_gpu);
+      return;
     } else {
       gpu_critics_.preferForwardCriticScore(data.state, data.model_dt, weight_, power_, cost_out);
     }
     data.costs += cost_out;
     return;
+  }
+  if (data.gpu_batch) {
+    data.gpu_batch->materializeHost();
+    data.gpu_batch->flushCosts(data.costs);
   }
 #endif
 

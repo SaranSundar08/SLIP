@@ -1,0 +1,69 @@
+[INFO] [launch]: All log files can be found below /home/saran/.ros/log/2026-09-19-00-09-05-819952-aorus-66386
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [robot_state_publisher-1]: process started with pid [66399]
+[INFO] [joint_state_publisher-2]: process started with pid [66401]
+[INFO] [gzserver-3]: process started with pid [66403]
+[INFO] [spawn_entity.py-4]: process started with pid [66405]
+[robot_state_publisher-1] Warning: link 'laser_center_link' material 'yellow' undefined.
+[robot_state_publisher-1]          at line 84 in ./urdf_parser/src/model.cpp
+[robot_state_publisher-1] Warning: link 'laser_center_link' material 'yellow' undefined.
+[robot_state_publisher-1]          at line 84 in ./urdf_parser/src/model.cpp
+[robot_state_publisher-1] [WARN] [1789769346.788363981] [kdl_parser]: The root link base_link has an inertia specified in the URDF, but KDL does not support a root link with an inertia.  As a workaround, you can add an extra dummy link to your URDF.
+[robot_state_publisher-1] [INFO] [1789769346.788427537] [robot_state_publisher]: got segment base_link
+[robot_state_publisher-1] [INFO] [1789769346.788480065] [robot_state_publisher]: got segment front_left_wheel_1
+[robot_state_publisher-1] [INFO] [1789769346.788483824] [robot_state_publisher]: got segment front_lidar_1
+[robot_state_publisher-1] [INFO] [1789769346.788486443] [robot_state_publisher]: got segment front_right_wheel_1
+[robot_state_publisher-1] [INFO] [1789769346.788488954] [robot_state_publisher]: got segment imu_link
+[robot_state_publisher-1] [INFO] [1789769346.788491511] [robot_state_publisher]: got segment laser_center_link
+[robot_state_publisher-1] [INFO] [1789769346.788494004] [robot_state_publisher]: got segment real_sense_1
+[robot_state_publisher-1] [INFO] [1789769346.788496475] [robot_state_publisher]: got segment rear_left_wheel_1
+[robot_state_publisher-1] [INFO] [1789769346.788498898] [robot_state_publisher]: got segment rear_lidar_1
+[robot_state_publisher-1] [INFO] [1789769346.788501473] [robot_state_publisher]: got segment rear_right_wheel_1
+[joint_state_publisher-2] [INFO] [1789769347.039660862] [joint_state_publisher]: Waiting for robot_description to be published on the robot_description topic...
+[spawn_entity.py-4] [INFO] [1789769347.084890745] [spawn_entity]: Spawn Entity started
+[spawn_entity.py-4] [INFO] [1789769347.085088580] [spawn_entity]: Loading entity published on topic robot_description
+[spawn_entity.py-4] [INFO] [1789769347.086090318] [spawn_entity]: Waiting for entity xml on robot_description
+[spawn_entity.py-4] [INFO] [1789769347.096971974] [spawn_entity]: Waiting for service /spawn_entity, timeout = 30
+[spawn_entity.py-4] [INFO] [1789769347.097142484] [spawn_entity]: Waiting for service /spawn_entity
+[spawn_entity.py-4] [INFO] [1789769348.101502451] [spawn_entity]: Calling service /spawn_entity
+[gzserver-3] Warning: link 'laser_center_link' material 'yellow' undefined.
+[gzserver-3]          at line 84 in ./urdf_parser/src/model.cpp
+[gzserver-3] Warning: link 'laser_center_link' material 'yellow' undefined.
+[gzserver-3]          at line 84 in ./urdf_parser/src/model.cpp
+[spawn_entity.py-4] [INFO] [1789769348.502337382] [spawn_entity]: Spawn status: SpawnEntity: Successfully spawned entity [susag_updated_model]
+[INFO] [spawn_entity.py-4]: process has finished cleanly [pid 66405]
+[gzserver-3] [INFO] [1789769348.828032676] [susag.depth_camera_plugin]: Publishing camera info to [/susag/depth_camera/camera_info]
+[gzserver-3] [INFO] [1789769348.828960366] [susag.depth_camera_plugin]: Publishing depth camera info to [/susag/depth_camera/depth/camera_info]
+[gzserver-3] [INFO] [1789769348.829231425] [susag.depth_camera_plugin]: Publishing pointcloud to [/susag/depth_camera/points]
+[gzserver-3] [INFO] [1789769348.929506369] [diff_drive]: Wheel pair 1 separation set to [0.740000m]
+[gzserver-3] [INFO] [1789769348.929540218] [diff_drive]: Wheel pair 2 separation set to [0.740000m]
+[gzserver-3] [INFO] [1789769348.929546007] [diff_drive]: Wheel pair 1 diameter set to [0.330000m]
+[gzserver-3] [INFO] [1789769348.929550399] [diff_drive]: Wheel pair 2 diameter set to [0.330000m]
+[gzserver-3] [INFO] [1789769348.930116833] [diff_drive]: Subscribed to [/cmd_vel]
+[gzserver-3] [INFO] [1789769348.931351293] [diff_drive]: Advertise odometry on [/odom]
+[gzserver-3] [INFO] [1789769348.932752307] [diff_drive]: Publishing odom transforms between [odom] and [base_link]
+[gzserver-3] [INFO] [1789769348.932770630] [diff_drive]: Publishing wheel transforms between [base_link], [front_wheel_left_joint] and [front_wheel_right_joint]
+[gzserver-3] [INFO] [1789769348.932775704] [diff_drive]: Publishing wheel transforms between [base_link], [rear_wheel_left_joint] and [rear_wheel_right_joint]
+[gzserver-3] [INFO] [1789769427.532621484] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[gzserver-3] terminate called after throwing an instance of 'std::runtime_error'
+[gzserver-3]   what():  could not count subscribers: rcl node's context is invalid, at ./src/rcl/node.c:428
+[robot_state_publisher-1] [INFO] [1789769427.564245989] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[joint_state_publisher-2] Traceback (most recent call last):
+[joint_state_publisher-2]   File "/opt/ros/humble/lib/joint_state_publisher/joint_state_publisher", line 33, in <module>
+[joint_state_publisher-2]     sys.exit(load_entry_point('joint-state-publisher==2.4.0', 'console_scripts', 'joint_state_publisher')())
+[joint_state_publisher-2]   File "/opt/ros/humble/lib/python3.10/site-packages/joint_state_publisher/joint_state_publisher.py", line 466, in main
+[joint_state_publisher-2]     rclpy.spin(jsp)
+[joint_state_publisher-2]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/__init__.py", line 229, in spin
+[joint_state_publisher-2]     executor.spin_once()
+[joint_state_publisher-2]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 812, in spin_once
+[joint_state_publisher-2]     self._spin_once_impl(timeout_sec)
+[joint_state_publisher-2]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 801, in _spin_once_impl
+[joint_state_publisher-2]     handler, entity, node = self.wait_for_ready_callbacks(timeout_sec=timeout_sec)
+[joint_state_publisher-2]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 784, in wait_for_ready_callbacks
+[joint_state_publisher-2]     return next(self._cb_iter)
+[joint_state_publisher-2]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 657, in _wait_for_ready_callbacks
+[joint_state_publisher-2]     wait_set = _rclpy.WaitSet(
+[joint_state_publisher-2] rclpy._rclpy_pybind11.RCLError: failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+[INFO] [robot_state_publisher-1]: process has finished cleanly [pid 66399]
+[ERROR] [joint_state_publisher-2]: process has died [pid 66401, exit code 1, cmd '/opt/ros/humble/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher --params-file /tmp/launch_params_3n218wu5'].
+[ERROR] [gzserver-3]: process has died [pid 66403, exit code -6, cmd 'gzserver /home/saran/robohouse_ws/src/BARN_dataset/scaled_1/world_files/world_42.world -slibgazebo_ros_init.so -slibgazebo_ros_factory.so -slibgazebo_ros_force_system.so'].

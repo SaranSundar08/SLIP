@@ -40,6 +40,7 @@ public:
   void initialize() override;
 
   void score(CriticData & data) override;
+  bool supportsGpuBatch() const override {return true;}
 
 protected:
   unsigned int power_{1};

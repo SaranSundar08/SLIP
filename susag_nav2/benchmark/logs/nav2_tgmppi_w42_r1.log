@@ -1,0 +1,460 @@
+[INFO] [launch]: All log files can be found below /home/saran/.ros/log/2026-09-19-00-09-09-146290-aorus-66607
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [ground_truth_localizer-1]: process started with pid [66665]
+[INFO] [component_container_isolated-2]: process started with pid [66667]
+[component_container_isolated-2] [INFO] [1789769350.160378914] [nav2_container]: Load Library: /opt/ros/humble/lib/libcontroller_server_core.so
+[component_container_isolated-2] [INFO] [1789769350.165088007] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_controller::ControllerServer>
+[component_container_isolated-2] [INFO] [1789769350.165114703] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_controller::ControllerServer>
+[component_container_isolated-2] [INFO] [1789769350.169956799] [controller_server]: 
+[component_container_isolated-2] 	controller_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789769350.175862962] [controller_server]: Creating controller server
+[component_container_isolated-2] [INFO] [1789769350.180980776] [local_costmap.local_costmap]: 
+[component_container_isolated-2] 	local_costmap lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789769350.181355421] [local_costmap.local_costmap]: Creating Costmap
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/controller_server' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1789769350.182419355] [nav2_container]: Load Library: /opt/ros/humble/lib/libmap_server_core.so
+[component_container_isolated-2] [INFO] [1789769350.189667606] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::CostmapFilterInfoServer>
+[component_container_isolated-2] [INFO] [1789769350.189701628] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapSaver>
+[component_container_isolated-2] [INFO] [1789769350.189704848] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapServer>
+[component_container_isolated-2] [INFO] [1789769350.189707626] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_map_server::MapServer>
+[component_container_isolated-2] [INFO] [1789769350.195189745] [map_server]: 
+[component_container_isolated-2] 	map_server lifecycle node launched. 
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/map_server' in container '/nav2_container'
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789769350.195227783] [map_server]: Creating
+[component_container_isolated-2] [INFO] [1789769350.195459827] [nav2_container]: Load Library: /opt/ros/humble/lib/libsmoother_server_core.so
+[component_container_isolated-2] [INFO] [1789769350.196341323] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_smoother::SmootherServer>
+[component_container_isolated-2] [INFO] [1789769350.196352710] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_smoother::SmootherServer>
+[component_container_isolated-2] [INFO] [1789769350.200629679] [smoother_server]: 
+[component_container_isolated-2] 	smoother_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789769350.201964293] [smoother_server]: Creating smoother server
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/smoother_server' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1789769350.202272804] [nav2_container]: Load Library: /opt/ros/humble/lib/libamcl_core.so
+[component_container_isolated-2] [INFO] [1789769350.203872265] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_amcl::AmclNode>
+[component_container_isolated-2] [INFO] [1789769350.203890683] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_amcl::AmclNode>
+[component_container_isolated-2] [INFO] [1789769350.211889600] [amcl]: 
+[component_container_isolated-2] 	amcl lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789769350.212402200] [amcl]: Creating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/amcl' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1789769350.214571154] [nav2_container]: Load Library: /opt/ros/humble/lib/libplanner_server_core.so
+[component_container_isolated-2] [INFO] [1789769350.215369067] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_planner::PlannerServer>
+[component_container_isolated-2] [INFO] [1789769350.215397146] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_planner::PlannerServer>
+[component_container_isolated-2] [INFO] [1789769350.223893717] [planner_server]: 
+[component_container_isolated-2] 	planner_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789769350.225342572] [planner_server]: Creating
+[ground_truth_localizer-1] [INFO] [1789769350.225456579] [ground_truth_localizer]: publishing map->odom from /ground_truth/odom (AMCL tf_broadcast must be false)
+[component_container_isolated-2] [INFO] [1789769350.234323965] [global_costmap.global_costmap]: 
+[component_container_isolated-2] 	global_costmap lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789769350.235060031] [global_costmap.global_costmap]: Creating Costmap
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/planner_server' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1789769350.236800335] [nav2_container]: Load Library: /opt/ros/humble/lib/libnav2_lifecycle_manager_core.so
+[component_container_isolated-2] [INFO] [1789769350.237715871] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1789769350.237751248] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1789769350.245950587] [lifecycle_manager_localization]: Creating
+[component_container_isolated-2] [INFO] [1789769350.248503553] [lifecycle_manager_localization]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/lifecycle_manager_localization' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1789769350.248638706] [nav2_container]: Load Library: /opt/ros/humble/lib/libbehavior_server_core.so
+[component_container_isolated-2] [INFO] [1789769350.252066442] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<behavior_server::BehaviorServer>
+[component_container_isolated-2] [INFO] [1789769350.252105680] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<behavior_server::BehaviorServer>
+[component_container_isolated-2] [INFO] [1789769350.254613932] [lifecycle_manager_localization]: [34m[1mStarting managed nodes bringup...[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.254677269] [lifecycle_manager_localization]: [34m[1mConfiguring map_server[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.254855459] [map_server]: Configuring
+[component_container_isolated-2] [INFO] [1789769350.254916878] [map_io]: Loading yaml file: /home/saran/robohouse_ws/src/BARN_dataset/scaled_1/map_files/yaml_42.yaml
+[component_container_isolated-2] [INFO] [1789769350.255137910] [map_io]: resolution: 0.15
+[component_container_isolated-2] [INFO] [1789769350.255142564] [map_io]: origin[0]: -4.5
+[component_container_isolated-2] [INFO] [1789769350.255145346] [map_io]: origin[1]: 0
+[component_container_isolated-2] [INFO] [1789769350.255147649] [map_io]: origin[2]: 0
+[component_container_isolated-2] [INFO] [1789769350.255150188] [map_io]: free_thresh: 0.5
+[component_container_isolated-2] [INFO] [1789769350.255152638] [map_io]: occupied_thresh: 0.5
+[component_container_isolated-2] [INFO] [1789769350.255155648] [map_io]: mode: trinary
+[component_container_isolated-2] [INFO] [1789769350.255158993] [map_io]: negate: 0
+[component_container_isolated-2] [INFO] [1789769350.255294448] [map_io]: Loading image_file: /home/saran/robohouse_ws/src/BARN_dataset/scaled_1/map_files/map_pgm_42.pgm
+[component_container_isolated-2] [INFO] [1789769350.255567415] [map_io]: Read map /home/saran/robohouse_ws/src/BARN_dataset/scaled_1/map_files/map_pgm_42.pgm: 30 X 78 map @ 0.15 m/cell
+[component_container_isolated-2] [INFO] [1789769350.259324906] [lifecycle_manager_localization]: [34m[1mConfiguring amcl[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.259443570] [amcl]: Configuring
+[component_container_isolated-2] [INFO] [1789769350.259545022] [amcl]: initTransforms
+[component_container_isolated-2] [INFO] [1789769350.265686841] [behavior_server]: 
+[component_container_isolated-2] 	behavior_server lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/behavior_server' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1789769350.267613470] [amcl]: initPubSub
+[component_container_isolated-2] [INFO] [1789769350.269108654] [nav2_container]: Load Library: /opt/ros/humble/lib/libbt_navigator_core.so
+[component_container_isolated-2] [INFO] [1789769350.270328320] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_bt_navigator::BtNavigator>
+[component_container_isolated-2] [INFO] [1789769350.270346815] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_bt_navigator::BtNavigator>
+[component_container_isolated-2] [INFO] [1789769350.271387402] [amcl]: Subscribed to map topic.
+[component_container_isolated-2] [INFO] [1789769350.273604552] [lifecycle_manager_localization]: [34m[1mActivating map_server[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.273723341] [map_server]: Activating
+[component_container_isolated-2] [INFO] [1789769350.273816902] [map_server]: Creating bond (map_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769350.273845311] [amcl]: Received a 30 X 78 map @ 0.150 m/pix
+[component_container_isolated-2] [INFO] [1789769350.279319337] [bt_navigator]: 
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/bt_navigator' in container '/nav2_container'
+[component_container_isolated-2] 	bt_navigator lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789769350.279366715] [bt_navigator]: Creating
+[component_container_isolated-2] [INFO] [1789769350.281916449] [nav2_container]: Load Library: /opt/ros/humble/lib/libwaypoint_follower_core.so
+[component_container_isolated-2] [INFO] [1789769350.282503973] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_waypoint_follower::WaypointFollower>
+[component_container_isolated-2] [INFO] [1789769350.282520560] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_waypoint_follower::WaypointFollower>
+[component_container_isolated-2] [INFO] [1789769350.288920209] [waypoint_follower]: 
+[component_container_isolated-2] 	waypoint_follower lifecycle node launched. 
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789769350.289320639] [waypoint_follower]: Creating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/waypoint_follower' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1789769350.291073444] [nav2_container]: Load Library: /opt/ros/humble/lib/libvelocity_smoother_core.so
+[component_container_isolated-2] [INFO] [1789769350.291570193] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_velocity_smoother::VelocitySmoother>
+[component_container_isolated-2] [INFO] [1789769350.291580095] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_velocity_smoother::VelocitySmoother>
+[component_container_isolated-2] [INFO] [1789769350.296375379] [velocity_smoother]: 
+[component_container_isolated-2] 	velocity_smoother lifecycle node launched. 
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/velocity_smoother' in container '/nav2_container'
+[component_container_isolated-2] 	Waiting on external lifecycle transitions to activate
+[component_container_isolated-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[component_container_isolated-2] [INFO] [1789769350.297895655] [nav2_container]: Found class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1789769350.297914848] [nav2_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nav2_lifecycle_manager::LifecycleManager>
+[component_container_isolated-2] [INFO] [1789769350.302942954] [lifecycle_manager_navigation]: Creating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/lifecycle_manager_navigation' in container '/nav2_container'
+[component_container_isolated-2] [INFO] [1789769350.304060076] [lifecycle_manager_navigation]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.315687889] [lifecycle_manager_navigation]: [34m[1mStarting managed nodes bringup...[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.315719355] [lifecycle_manager_navigation]: [34m[1mConfiguring controller_server[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.315821402] [controller_server]: Configuring controller interface
+[component_container_isolated-2] [INFO] [1789769350.316084464] [controller_server]: getting goal checker plugins..
+[component_container_isolated-2] [INFO] [1789769350.316244335] [controller_server]: Controller frequency set to 20.0000Hz
+[component_container_isolated-2] [INFO] [1789769350.316286357] [local_costmap.local_costmap]: Configuring
+[component_container_isolated-2] [INFO] [1789769350.320055202] [local_costmap.local_costmap]: Using plugin "obstacle_layer"
+[component_container_isolated-2] [INFO] [1789769350.323395608] [local_costmap.local_costmap]: Subscribed to Topics: front_scan rear_scan
+[component_container_isolated-2] [INFO] [1789769350.328863014] [local_costmap.local_costmap]: Initialized plugin "obstacle_layer"
+[component_container_isolated-2] [INFO] [1789769350.328894811] [local_costmap.local_costmap]: Using plugin "stvl_local"
+[component_container_isolated-2] [INFO] [1789769350.351658705] [local_costmap.local_costmap]: stvl_local being initialized as SpatioTemporalVoxelLayer!
+[component_container_isolated-2] [INFO] [1789769350.351695926] [local_costmap.local_costmap]: stvl_local's global frame is odom.
+[component_container_isolated-2] [INFO] [1789769350.352521210] [local_costmap.local_costmap]: stvl_local loaded parameters from parameter server.
+[component_container_isolated-2] [INFO] [1789769350.353923333] [local_costmap.local_costmap]: stvl_local created underlying voxel grid.
+[component_container_isolated-2] [INFO] [1789769350.355986881] [local_costmap.local_costmap]: Voxel filter activated.
+[component_container_isolated-2] [INFO] [1789769350.359332025] [local_costmap.local_costmap]: stvl_local initialization complete!
+[component_container_isolated-2] [INFO] [1789769350.359378917] [local_costmap.local_costmap]: Initialized plugin "stvl_local"
+[component_container_isolated-2] [INFO] [1789769350.359387757] [local_costmap.local_costmap]: Using plugin "inflation_layer"
+[component_container_isolated-2] [INFO] [1789769350.360365690] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[component_container_isolated-2] [INFO] [1789769350.366453118] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[component_container_isolated-2] [INFO] [1789769350.367458374] [controller_server]: Created goal checker : general_goal_checker of type nav2_controller::SimpleGoalChecker
+[component_container_isolated-2] [INFO] [1789769350.367895845] [controller_server]: Controller Server has general_goal_checker  goal checkers available.
+[component_container_isolated-2] [INFO] [1789769350.377648757] [lifecycle_manager_localization]: Server map_server connected with bond.
+[component_container_isolated-2] [INFO] [1789769350.377687602] [lifecycle_manager_localization]: [34m[1mActivating amcl[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.377851644] [amcl]: Activating
+[component_container_isolated-2] [INFO] [1789769350.377888315] [amcl]: Creating bond (amcl) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769350.381060932] [amcl]: createLaserObject
+[component_container_isolated-2] [INFO] [1789769350.692248336] [controller_server]: Created controller : FollowPath of type nav2_tgmppi_controller::TgMppiController
+[component_container_isolated-2] [INFO] [1789769350.695005737] [amcl]: initialPoseReceived
+[component_container_isolated-2] [INFO] [1789769350.695076651] [amcl]: Setting pose (1.800000): -2.250 1.000 1.571
+[component_container_isolated-2] [INFO] [1789769350.696234026] [amcl]: initialPoseReceived
+[component_container_isolated-2] [INFO] [1789769350.696268066] [amcl]: Setting pose (1.800000): -2.250 1.000 1.571
+[component_container_isolated-2] [INFO] [1789769350.697637400] [controller_server]: [TG-MPPI] flow mode: water field over local costmap (reflood every 1 cycle(s), plan-seeded membrane, radius=2.50m, bias=0.40 gain=1.00, shadow=true, sampling=disabled, critic=disabled, ancillary collision check=enabled)
+[component_container_isolated-2] [INFO] [1789769350.697790222] [controller_server]: Controller period is equal to model dt. Control sequence shifting is ON
+[component_container_isolated-2] [INFO] [1789769350.702342974] [amcl]: initialPoseReceived
+[component_container_isolated-2] [INFO] [1789769350.702391145] [amcl]: Setting pose (1.800000): -2.250 1.000 1.571
+[component_container_isolated-2] [INFO] [1789769350.706515110] [controller_server]: ConstraintCritic instantiated with 1 power and 4.000000 weight.
+[component_container_isolated-2] [INFO] [1789769350.733399482] [controller_server]: Critic loaded : tgmppi::critics::ConstraintCritic
+[component_container_isolated-2] [INFO] [1789769350.734033980] [controller_server]: InflationCostCritic instantiated with 1 power and 300.000000 / 0.015000 weights. Critic will collision check based on footprint cost.
+[component_container_isolated-2] [INFO] [1789769350.734063512] [controller_server]: Critic loaded : tgmppi::critics::CostCritic
+[component_container_isolated-2] [INFO] [1789769350.734425891] [controller_server]: GoalCritic instantiated with 1 power and 5.000000 weight.
+[component_container_isolated-2] [INFO] [1789769350.734452707] [controller_server]: Critic loaded : tgmppi::critics::GoalCritic
+[component_container_isolated-2] [INFO] [1789769350.734774515] [controller_server]: GoalAngleCritic instantiated with 1 power, 3.000000 weight, 0.500000 angular threshold and symmetric_yaw_tolerance disabled
+[component_container_isolated-2] [INFO] [1789769350.734785576] [controller_server]: Critic loaded : tgmppi::critics::GoalAngleCritic
+[component_container_isolated-2] [INFO] [1789769350.735237705] [controller_server]: ReferenceTrajectoryCritic instantiated with 1 power and 3.000000 weight
+[component_container_isolated-2] [INFO] [1789769350.735248289] [controller_server]: Critic loaded : tgmppi::critics::PathAlignCritic
+[component_container_isolated-2] [INFO] [1789769350.735547502] [controller_server]: Critic loaded : tgmppi::critics::PathFollowCritic
+[component_container_isolated-2] [INFO] [1789769350.735933217] [controller_server]: PathAngleCritic instantiated with 1 power and 2.000000 weight. Reversing allowed.
+[component_container_isolated-2] [INFO] [1789769350.735941888] [controller_server]: Critic loaded : tgmppi::critics::PathAngleCritic
+[component_container_isolated-2] [INFO] [1789769350.736183314] [controller_server]: PreferForwardCritic instantiated with 1 power and 2.000000 weight.
+[component_container_isolated-2] [INFO] [1789769350.736190825] [controller_server]: Critic loaded : tgmppi::critics::PreferForwardCritic
+[component_container_isolated-2] [INFO] [1789769350.742167456] [controller_server]: Optimizer reset (compute_backend=cpu)
+[component_container_isolated-2] [INFO] [1789769350.743463590] [TgMppiController]: Configured MPPI Controller: FollowPath
+[component_container_isolated-2] [INFO] [1789769350.743483238] [controller_server]: Controller Server has FollowPath  controllers available.
+[component_container_isolated-2] [INFO] [1789769350.747301814] [lifecycle_manager_navigation]: [34m[1mConfiguring smoother_server[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.747468812] [smoother_server]: Configuring smoother server
+[component_container_isolated-2] [INFO] [1789769350.752607326] [smoother_server]: Created smoother : simple_smoother of type nav2_smoother::SimpleSmoother
+[component_container_isolated-2] [INFO] [1789769350.753308809] [smoother_server]: Smoother Server has simple_smoother  smoothers available.
+[component_container_isolated-2] [INFO] [1789769350.757184686] [lifecycle_manager_navigation]: [34m[1mConfiguring planner_server[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.757308415] [planner_server]: Configuring
+[component_container_isolated-2] [INFO] [1789769350.757357991] [global_costmap.global_costmap]: Configuring
+[component_container_isolated-2] [INFO] [1789769350.761353378] [global_costmap.global_costmap]: Using plugin "static_layer"
+[component_container_isolated-2] [INFO] [1789769350.762350563] [global_costmap.global_costmap]: Subscribing to the map topic (/map) with transient local durability
+[component_container_isolated-2] [INFO] [1789769350.762871351] [global_costmap.global_costmap]: Subscribing to updates
+[component_container_isolated-2] [INFO] [1789769350.763308845] [global_costmap.global_costmap]: Initialized plugin "static_layer"
+[component_container_isolated-2] [INFO] [1789769350.763331423] [global_costmap.global_costmap]: Using plugin "obstacle_layer"
+[component_container_isolated-2] [INFO] [1789769350.764121546] [global_costmap.global_costmap]: Subscribed to Topics: front_scan rear_scan
+[component_container_isolated-2] [INFO] [1789769350.769829235] [global_costmap.global_costmap]: Initialized plugin "obstacle_layer"
+[component_container_isolated-2] [INFO] [1789769350.769861732] [global_costmap.global_costmap]: Using plugin "stvl_global"
+[component_container_isolated-2] [INFO] [1789769350.770082214] [global_costmap.global_costmap]: stvl_global being initialized as SpatioTemporalVoxelLayer!
+[component_container_isolated-2] [INFO] [1789769350.770098638] [global_costmap.global_costmap]: stvl_global's global frame is map.
+[component_container_isolated-2] [INFO] [1789769350.771686666] [global_costmap.global_costmap]: stvl_global loaded parameters from parameter server.
+[component_container_isolated-2] [INFO] [1789769350.773155487] [global_costmap.global_costmap]: stvl_global created underlying voxel grid.
+[component_container_isolated-2] [INFO] [1789769350.775910540] [global_costmap.global_costmap]: Voxel filter activated.
+[component_container_isolated-2] [INFO] [1789769350.778487665] [global_costmap.global_costmap]: stvl_global initialization complete!
+[component_container_isolated-2] [INFO] [1789769350.778522691] [global_costmap.global_costmap]: Initialized plugin "stvl_global"
+[component_container_isolated-2] [INFO] [1789769350.778535036] [global_costmap.global_costmap]: Using plugin "inflation_layer"
+[component_container_isolated-2] [INFO] [1789769350.779601922] [global_costmap.global_costmap]: Initialized plugin "inflation_layer"
+[component_container_isolated-2] [INFO] [1789769350.784828033] [planner_server]: Created global planner plugin GridBased of type nav2_navfn_planner/NavfnPlanner
+[component_container_isolated-2] [INFO] [1789769350.784874169] [planner_server]: Configuring plugin GridBased of type NavfnPlanner
+[component_container_isolated-2] [INFO] [1789769350.785700637] [planner_server]: Planner Server has GridBased  planners available.
+[component_container_isolated-2] [INFO] [1789769350.793097997] [lifecycle_manager_navigation]: [34m[1mConfiguring behavior_server[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.793233472] [behavior_server]: Configuring
+[component_container_isolated-2] [INFO] [1789769350.795827513] [lifecycle_manager_localization]: Server amcl connected with bond.
+[component_container_isolated-2] [INFO] [1789769350.795850403] [lifecycle_manager_localization]: [34m[1mManaged nodes are active[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.795864168] [lifecycle_manager_localization]: [34m[1mCreating bond timer...[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.797627497] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors/Spin
+[component_container_isolated-2] [INFO] [1789769350.798475853] [behavior_server]: Configuring spin
+[component_container_isolated-2] [INFO] [1789769350.802653367] [behavior_server]: Creating behavior plugin backup of type nav2_behaviors/BackUp
+[component_container_isolated-2] [INFO] [1789769350.803152636] [behavior_server]: Configuring backup
+[component_container_isolated-2] [INFO] [1789769350.805586543] [behavior_server]: Creating behavior plugin drive_on_heading of type nav2_behaviors/DriveOnHeading
+[component_container_isolated-2] [INFO] [1789769350.806079861] [behavior_server]: Configuring drive_on_heading
+[component_container_isolated-2] [INFO] [1789769350.810036202] [behavior_server]: Creating behavior plugin wait of type nav2_behaviors/Wait
+[component_container_isolated-2] [INFO] [1789769350.810781973] [behavior_server]: Configuring wait
+[component_container_isolated-2] [INFO] [1789769350.815165650] [lifecycle_manager_navigation]: [34m[1mConfiguring bt_navigator[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.815285075] [bt_navigator]: Configuring
+[component_container_isolated-2] [INFO] [1789769350.832838165] [global_costmap.global_costmap]: StaticLayer: Resizing costmap to 30 X 78 at 0.150000 m/pix
+[component_container_isolated-2] [INFO] [1789769350.853031550] [lifecycle_manager_navigation]: [34m[1mConfiguring waypoint_follower[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.853156058] [waypoint_follower]: Configuring
+[component_container_isolated-2] [INFO] [1789769350.861083608] [waypoint_follower]: Created waypoint_task_executor : wait_at_waypoint of type nav2_waypoint_follower::WaitAtWaypoint
+[component_container_isolated-2] [INFO] [1789769350.861816793] [lifecycle_manager_navigation]: [34m[1mConfiguring velocity_smoother[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.861965070] [velocity_smoother]: Configuring velocity smoother
+[component_container_isolated-2] [INFO] [1789769350.863703106] [lifecycle_manager_navigation]: [34m[1mActivating controller_server[0m[0m
+[component_container_isolated-2] [INFO] [1789769350.863810806] [controller_server]: Activating
+[component_container_isolated-2] [INFO] [1789769350.863851484] [local_costmap.local_costmap]: Activating
+[component_container_isolated-2] [INFO] [1789769350.863870321] [local_costmap.local_costmap]: Checking transform
+[component_container_isolated-2] [INFO] [1789769350.863979026] [local_costmap.local_costmap]: start
+[component_container_isolated-2] [INFO] [1789769350.865130854] [local_costmap.local_costmap]: stvl_local was activated.
+[component_container_isolated-2] [WARN] [1789769351.166049699] [controller_server]: Parameter controller_server.verbose not found
+[component_container_isolated-2] [INFO] [1789769351.172120484] [controller_server]: Optimizer reset (compute_backend=cpu)
+[component_container_isolated-2] [INFO] [1789769351.172540110] [TgMppiController]: Activated MPPI Controller: FollowPath
+[component_container_isolated-2] [INFO] [1789769351.172579637] [controller_server]: Creating bond (controller_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769351.275931934] [lifecycle_manager_navigation]: Server controller_server connected with bond.
+[component_container_isolated-2] [INFO] [1789769351.275965354] [lifecycle_manager_navigation]: [34m[1mActivating smoother_server[0m[0m
+[component_container_isolated-2] [INFO] [1789769351.276138328] [smoother_server]: Activating
+[component_container_isolated-2] [INFO] [1789769351.276163128] [smoother_server]: Creating bond (smoother_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769351.379445976] [lifecycle_manager_navigation]: Server smoother_server connected with bond.
+[component_container_isolated-2] [INFO] [1789769351.379490829] [lifecycle_manager_navigation]: [34m[1mActivating planner_server[0m[0m
+[component_container_isolated-2] [INFO] [1789769351.379717009] [planner_server]: Activating
+[component_container_isolated-2] [INFO] [1789769351.379752781] [global_costmap.global_costmap]: Activating
+[component_container_isolated-2] [INFO] [1789769351.379758848] [global_costmap.global_costmap]: Checking transform
+[component_container_isolated-2] [INFO] [1789769351.379778553] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Lookup would require extrapolation into the past.  Requested time 2.495000 but the earliest data is at time 2.935000, when looking up transform from frame [base_link] to frame [map]
+[component_container_isolated-2] [INFO] [1789769351.880490178] [global_costmap.global_costmap]: Timed out waiting for transform from base_link to map to become available, tf error: Lookup would require extrapolation into the past.  Requested time 2.875000 but the earliest data is at time 2.935000, when looking up transform from frame [base_link] to frame [map]
+[component_container_isolated-2] [INFO] [1789769352.379914380] [global_costmap.global_costmap]: start
+[component_container_isolated-2] [INFO] [1789769352.380813829] [global_costmap.global_costmap]: stvl_global was activated.
+[component_container_isolated-2] [INFO] [1789769353.381212932] [planner_server]: Activating plugin GridBased of type NavfnPlanner
+[component_container_isolated-2] [INFO] [1789769353.382940721] [planner_server]: Creating bond (planner_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769353.486943313] [lifecycle_manager_navigation]: Server planner_server connected with bond.
+[component_container_isolated-2] [INFO] [1789769353.487006319] [lifecycle_manager_navigation]: [34m[1mActivating behavior_server[0m[0m
+[component_container_isolated-2] [INFO] [1789769353.487236047] [behavior_server]: Activating
+[component_container_isolated-2] [INFO] [1789769353.487263168] [behavior_server]: Activating spin
+[component_container_isolated-2] [INFO] [1789769353.487288182] [behavior_server]: Activating backup
+[component_container_isolated-2] [INFO] [1789769353.487302463] [behavior_server]: Activating drive_on_heading
+[component_container_isolated-2] [INFO] [1789769353.487315818] [behavior_server]: Activating wait
+[component_container_isolated-2] [INFO] [1789769353.487331703] [behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769353.591969809] [lifecycle_manager_navigation]: Server behavior_server connected with bond.
+[component_container_isolated-2] [INFO] [1789769353.592014928] [lifecycle_manager_navigation]: [34m[1mActivating bt_navigator[0m[0m
+[component_container_isolated-2] [INFO] [1789769353.592324332] [bt_navigator]: Activating
+[component_container_isolated-2] [INFO] [1789769353.631209093] [bt_navigator]: Creating bond (bt_navigator) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769353.734257068] [lifecycle_manager_navigation]: Server bt_navigator connected with bond.
+[component_container_isolated-2] [INFO] [1789769353.734300869] [lifecycle_manager_navigation]: [34m[1mActivating waypoint_follower[0m[0m
+[component_container_isolated-2] [INFO] [1789769353.734579519] [waypoint_follower]: Activating
+[component_container_isolated-2] [INFO] [1789769353.734626897] [waypoint_follower]: Creating bond (waypoint_follower) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769353.839263154] [lifecycle_manager_navigation]: Server waypoint_follower connected with bond.
+[component_container_isolated-2] [INFO] [1789769353.839302528] [lifecycle_manager_navigation]: [34m[1mActivating velocity_smoother[0m[0m
+[component_container_isolated-2] [INFO] [1789769353.839518906] [velocity_smoother]: Activating
+[component_container_isolated-2] [INFO] [1789769353.839562153] [velocity_smoother]: Creating bond (velocity_smoother) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769353.943406262] [lifecycle_manager_navigation]: Server velocity_smoother connected with bond.
+[component_container_isolated-2] [INFO] [1789769353.943449221] [lifecycle_manager_navigation]: [34m[1mManaged nodes are active[0m[0m
+[component_container_isolated-2] [INFO] [1789769353.943483407] [lifecycle_manager_navigation]: [34m[1mCreating bond timer...[0m[0m
+[ground_truth_localizer-1] [INFO] [1789769359.533997910] [ground_truth_localizer]: last 10 s: ground truth msgs 254, map->odom published 254 (253 via latest odom TF)
+[ground_truth_localizer-1] [INFO] [1789769370.400838667] [ground_truth_localizer]: last 10 s: ground truth msgs 294, map->odom published 294 (291 via latest odom TF)
+[ground_truth_localizer-1] [INFO] [1789769380.984408293] [ground_truth_localizer]: last 10 s: ground truth msgs 294, map->odom published 294 (289 via latest odom TF)
+[ground_truth_localizer-1] [INFO] [1789769392.080421008] [ground_truth_localizer]: last 10 s: ground truth msgs 294, map->odom published 294 (293 via latest odom TF)
+[ground_truth_localizer-1] [INFO] [1789769403.761240007] [ground_truth_localizer]: last 10 s: ground truth msgs 294, map->odom published 294 (292 via latest odom TF)
+[ground_truth_localizer-1] [INFO] [1789769414.746746005] [ground_truth_localizer]: last 10 s: ground truth msgs 294, map->odom published 294 (287 via latest odom TF)
+[ground_truth_localizer-1] [INFO] [1789769425.628638735] [ground_truth_localizer]: last 10 s: ground truth msgs 294, map->odom published 294 (289 via latest odom TF)
+[component_container_isolated-2] [INFO] [1789769427.554052063] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[component_container_isolated-2] [INFO] [1789769427.554143468] [lifecycle_manager_navigation]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_navigation)
+[component_container_isolated-2] [INFO] [1789769427.554203953] [lifecycle_manager_navigation]: [34m[1mTerminating bond timer...[0m[0m
+[component_container_isolated-2] [INFO] [1789769427.643504766] [waypoint_follower]: Running Nav2 LifecycleNode rcl preshutdown (waypoint_follower)
+[component_container_isolated-2] [INFO] [1789769427.643554906] [waypoint_follower]: Deactivating
+[component_container_isolated-2] [INFO] [1789769427.643569661] [waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769427.653643615] [waypoint_follower]: Cleaning up
+[component_container_isolated-2] [INFO] [1789769427.657626869] [waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769427.657642623] [lifecycle_manager_localization]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_localization)
+[component_container_isolated-2] [INFO] [1789769427.657650909] [lifecycle_manager_localization]: [34m[1mTerminating bond timer...[0m[0m
+[component_container_isolated-2] [INFO] [1789769427.680718920] [velocity_smoother]: Running Nav2 LifecycleNode rcl preshutdown (velocity_smoother)
+[component_container_isolated-2] [INFO] [1789769427.680758803] [velocity_smoother]: Deactivating
+[component_container_isolated-2] [INFO] [1789769427.680771967] [velocity_smoother]: Destroying bond (velocity_smoother) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769427.690881876] [velocity_smoother]: Cleaning up
+[component_container_isolated-2] [INFO] [1789769427.690898035] [velocity_smoother]: Destroying bond (velocity_smoother) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769427.690903016] [planner_server]: Running Nav2 LifecycleNode rcl preshutdown (planner_server)
+[component_container_isolated-2] [INFO] [1789769427.690915663] [planner_server]: Deactivating
+[component_container_isolated-2] [INFO] [1789769427.690933203] [global_costmap.global_costmap]: Deactivating
+[component_container_isolated-2] [INFO] [1789769427.692041408] [global_costmap.global_costmap]: stvl_global was deactivated.
+[component_container_isolated-2] [INFO] [1789769428.380224150] [planner_server]: Deactivating plugin GridBased of type NavfnPlanner
+[component_container_isolated-2] [INFO] [1789769428.380269416] [planner_server]: Destroying bond (planner_server) to lifecycle manager.
+[component_container_isolated-2] [INFO] [1789769428.390387010] [planner_server]: Cleaning up
+[component_container_isolated-2] [INFO] [1789769428.399069564] [global_costmap.global_costmap]: Cleaning up
+[component_container_isolated-2] [WARN] [1789769432.616003669] [tf2_buffer]: Detected jump back in time. Clearing TF buffer.
+[component_container_isolated-2] [WARN] [1789769432.616003792] [tf2_buffer]: Detected jump back in time. Clearing TF buffer.
+[component_container_isolated-2] [WARN] [1789769432.616011017] [tf2_buffer]: Detected jump back in time. Clearing TF buffer.
+[component_container_isolated-2] [WARN] [1789769432.616019120] [tf2_buffer]: Detected jump back in time. Clearing TF buffer.
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.100000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.100000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.100000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.100000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.100000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.100000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.100000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.100000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.100000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.100000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.100000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.100000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.200000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.200000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.200000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.200000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.200000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.200000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.200000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.200000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.200000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.200000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.200000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.200000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.300000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.300000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.300000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.300000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.300000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.300000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.300000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.300000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.300000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.300000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.300000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.300000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.400000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.400000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.400000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.400000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.400000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.400000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.400000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.400000 according to authority Authority undetectable
+[component_container_isolated-2] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[component_container_isolated-2]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame front_left_wheel_1 at time 0.400000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame front_right_wheel_1 at time 0.400000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame rear_left_wheel_1 at time 0.400000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[ground_truth_localizer-1] Warning: TF_OLD_DATA ignoring data from the past for frame rear_right_wheel_1 at time 0.400000 according to authority default_authority
+[ground_truth_localizer-1] Possible reasons are listed at http://wiki.ros.org/tf/Errors%20explained
+[ground_truth_localizer-1]          at line 294 in ./src/buffer_core.cpp
+[component_container_isolated-2] [ERROR] [1789769432.927987926] [transformPoseInTargetFrame]: Connectivity Error looking up target frame: Could not find a connection between 'odom' and 'base_link' because they are not part of the same tree.Tf has two or more unconnected trees.
+[component_container_isolated-2] 

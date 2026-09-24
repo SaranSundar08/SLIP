@@ -208,6 +208,14 @@ parser.add_argument("--radius-scale", type=float, default=1.0,
 parser.add_argument("--scenario", default=None,
                     help="write world_<name>.world and matching map yaml links, so the "
                          "launch can select it with world_idx:=<name>")
+parser.add_argument("--room-y-max", type=float, default=12.5,
+                    help="north wall position; raise to fit more lanes")
+parser.add_argument("--route", nargs=4, type=float, action="append", default=None,
+                    help="x0 y0 x1 y1 of a leg the robot drives; repeatable. "
+                         "Default: the two legs benchmark_dynamic.py's START/A/B drive.")
+parser.add_argument("--track-y-max", type=float, default=None,
+                    help="polynomial-mode tracks stay below this y, leaving a clear "
+                         "buffer above it (goal end). Default: room_y_max (no buffer).")
 parser.add_argument("--seed", type=int, default=None,
                     help="randomize obstacle phases; omit for all-zero phases "
                          "(every run then replays the identical scene, so repeats "
@@ -220,7 +228,7 @@ COLORS = ["0.9 0.2 0.1", "0.1 0.3 0.9", "0.2 0.8 0.3", "0.9 0.6 0.1", "0.6 0.2 0
           "0.1 0.7 0.7", "0.8 0.4 0.6", "0.5 0.5 0.1", "0.3 0.3 0.8", "0.7 0.7 0.2"]
 ROOM_HALF_X = 4.0
 ROOM_Y_MIN = -0.5         # inner faces of wall_south / wall_north
-ROOM_Y_MAX = 12.5
+ROOM_Y_MAX = args.room_y_max
 SAFE_MARGIN = 0.05        # keep the swept edge off the wall
 MIN_LANE_SPACING = 1.6    # see rule 1 above
 
@@ -237,12 +245,15 @@ OSC_BLOCK = ("        <amplitude>{amplitude}</amplitude>\n"
 TRACK_BLOCK = ("        <waypoints>{waypoints}</waypoints>\n"
                "        <speed>{speed}</speed>")
 
-# Robot start and the two goals used in every dynamic run: a track that passes
-# through them would put an obstacle on top of the robot before it moves.
-KEEPOUTS = [(0.0, 1.0), (2.5, 11.3), (-2.8, 0.5)]
+# Robot start/goal points: a track that passes through them would put an
+# obstacle on top of the robot before it moves. Tracks must also interact
+# with one of the legs (ROUTES) or they'd never affect the run.
+_default_route = [((0.0, 1.0), (2.5, 11.3)), ((2.5, 11.3), (-2.8, 0.5))]
+ROUTES = ([((x0, y0), (x1, y1)) for x0, y0, x1, y1 in args.route]
+          if args.route else _default_route)
+KEEPOUTS = sorted({pt for leg in ROUTES for pt in leg})
 KEEPOUT_R = 1.2
-# The two legs the robot actually drives; tracks must interact with one of them.
-ROUTES = [((0.0, 1.0), (2.5, 11.3)), ((2.5, 11.3), (-2.8, 0.5))]
+TRACK_Y_MAX = args.track_y_max if args.track_y_max is not None else args.room_y_max
 
 
 def polynomial_track(rng, radius):
@@ -252,7 +263,7 @@ def polynomial_track(rng, radius):
     x_lo = -ROOM_HALF_X + radius + SAFE_MARGIN
     x_hi = ROOM_HALF_X - radius - SAFE_MARGIN
     y_lo = ROOM_Y_MIN + radius + SAFE_MARGIN
-    y_hi = ROOM_Y_MAX - radius - SAFE_MARGIN
+    y_hi = TRACK_Y_MAX - radius - SAFE_MARGIN
     for _ in range(400):
         order = rng.choice([2, 3])
         xs = [rng.uniform(x_lo, x_hi) for _ in range(order + 1)]
@@ -277,6 +288,14 @@ def polynomial_track(rng, radius):
         # linearly between them, so the obstacle would cut long straight chords
         # instead of following the curve.
         pts = densify(pts, 0.25)
+        # Re-check the keepout AFTER densifying, not just on the 24 coarse
+        # x-spaced samples above: two adjacent coarse samples can each be
+        # individually clear of a keepout while the curve/chord between them
+        # still cuts through it. Only this fine-grained (0.25 m) check is
+        # authoritative for what actually gets close to the robot's start/goal.
+        if any(math.hypot(a - kx, b - ky) < KEEPOUT_R
+               for a, b in pts for kx, ky in KEEPOUTS):
+            continue
         # An obstacle that never comes near the route cannot influence the run;
         # DynaBARN's obstacles cross the arena, so require the same here.
         if min(point_segment_distance(pt, a, b) for pt in pts for a, b in ROUTES) > 2.0:
@@ -362,11 +381,13 @@ else:
 if problems:
     raise SystemExit("refusing to write an unusable world:\n  - " + "\n  - ".join(problems))
 
+room_y_span = ROOM_Y_MAX - ROOM_Y_MIN
+room_y_mid = (ROOM_Y_MAX + ROOM_Y_MIN) / 2.0
 walls = [
-    dict(name="wall_south", x=0.0, y=-0.55, yaw=0.0, length=8.1),
-    dict(name="wall_north", x=0.0, y=12.55, yaw=0.0, length=8.1),
-    dict(name="wall_west", x=-4.05, y=6.0, yaw=1.5708, length=13.1),
-    dict(name="wall_east", x=4.05, y=6.0, yaw=1.5708, length=13.1),
+    dict(name="wall_south", x=0.0, y=ROOM_Y_MIN - 0.05, yaw=0.0, length=8.1),
+    dict(name="wall_north", x=0.0, y=ROOM_Y_MAX + 0.05, yaw=0.0, length=8.1),
+    dict(name="wall_west", x=-4.05, y=room_y_mid, yaw=1.5708, length=room_y_span + 0.1),
+    dict(name="wall_east", x=4.05, y=room_y_mid, yaw=1.5708, length=room_y_span + 0.1),
 ]
 
 parts = [WORLD_HEADER]

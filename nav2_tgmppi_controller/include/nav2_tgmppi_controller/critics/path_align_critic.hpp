@@ -46,6 +46,7 @@ public:
    * @param costs [out] add reference cost values to this tensor
    */
   void score(CriticData & data) override;
+  bool supportsGpuBatch() const override {return true;}
 
 protected:
   size_t offset_from_furthest_{0};

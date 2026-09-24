@@ -44,6 +44,7 @@ public:
    * @param costs [out] add goal angle cost values to this tensor
    */
   void score(CriticData & data) override;
+  bool supportsGpuBatch() const override {return true;}
 
 protected:
   bool symmetric_yaw_tolerance_{false};

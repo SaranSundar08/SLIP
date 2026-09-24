@@ -1,0 +1,51 @@
+[INFO] [launch]: All log files can be found below /home/saran/.ros/log/2026-09-19-00-25-02-268604-aorus-85738
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [robot_state_publisher-1]: process started with pid [85739]
+[INFO] [joint_state_publisher-2]: process started with pid [85741]
+[INFO] [gzserver-3]: process started with pid [85743]
+[INFO] [spawn_entity.py-4]: process started with pid [85745]
+[robot_state_publisher-1] Warning: link 'laser_center_link' material 'yellow' undefined.
+[robot_state_publisher-1]          at line 84 in ./urdf_parser/src/model.cpp
+[robot_state_publisher-1] Warning: link 'laser_center_link' material 'yellow' undefined.
+[robot_state_publisher-1]          at line 84 in ./urdf_parser/src/model.cpp
+[robot_state_publisher-1] [WARN] [1789770303.231327244] [kdl_parser]: The root link base_link has an inertia specified in the URDF, but KDL does not support a root link with an inertia.  As a workaround, you can add an extra dummy link to your URDF.
+[robot_state_publisher-1] [INFO] [1789770303.231390420] [robot_state_publisher]: got segment base_link
+[robot_state_publisher-1] [INFO] [1789770303.231440399] [robot_state_publisher]: got segment front_left_wheel_1
+[robot_state_publisher-1] [INFO] [1789770303.231444316] [robot_state_publisher]: got segment front_lidar_1
+[robot_state_publisher-1] [INFO] [1789770303.231446992] [robot_state_publisher]: got segment front_right_wheel_1
+[robot_state_publisher-1] [INFO] [1789770303.231449529] [robot_state_publisher]: got segment imu_link
+[robot_state_publisher-1] [INFO] [1789770303.231452164] [robot_state_publisher]: got segment laser_center_link
+[robot_state_publisher-1] [INFO] [1789770303.231454720] [robot_state_publisher]: got segment real_sense_1
+[robot_state_publisher-1] [INFO] [1789770303.231457356] [robot_state_publisher]: got segment rear_left_wheel_1
+[robot_state_publisher-1] [INFO] [1789770303.231459847] [robot_state_publisher]: got segment rear_lidar_1
+[robot_state_publisher-1] [INFO] [1789770303.231462349] [robot_state_publisher]: got segment rear_right_wheel_1
+[joint_state_publisher-2] [INFO] [1789770303.427509027] [joint_state_publisher]: Waiting for robot_description to be published on the robot_description topic...
+[spawn_entity.py-4] [INFO] [1789770303.525581135] [spawn_entity]: Spawn Entity started
+[spawn_entity.py-4] [INFO] [1789770303.525878955] [spawn_entity]: Loading entity published on topic robot_description
+[spawn_entity.py-4] [INFO] [1789770303.526946732] [spawn_entity]: Waiting for entity xml on robot_description
+[spawn_entity.py-4] [INFO] [1789770303.649782329] [spawn_entity]: Waiting for service /spawn_entity, timeout = 30
+[spawn_entity.py-4] [INFO] [1789770303.650088580] [spawn_entity]: Waiting for service /spawn_entity
+[spawn_entity.py-4] [INFO] [1789770304.654763263] [spawn_entity]: Calling service /spawn_entity
+[gzserver-3] Warning: link 'laser_center_link' material 'yellow' undefined.
+[gzserver-3]          at line 84 in ./urdf_parser/src/model.cpp
+[gzserver-3] Warning: link 'laser_center_link' material 'yellow' undefined.
+[gzserver-3]          at line 84 in ./urdf_parser/src/model.cpp
+[spawn_entity.py-4] [INFO] [1789770305.044813785] [spawn_entity]: Spawn status: SpawnEntity: Successfully spawned entity [susag_updated_model]
+[INFO] [spawn_entity.py-4]: process has finished cleanly [pid 85745]
+[gzserver-3] [INFO] [1789770305.406157801] [susag.depth_camera_plugin]: Publishing camera info to [/susag/depth_camera/camera_info]
+[gzserver-3] [INFO] [1789770305.407088420] [susag.depth_camera_plugin]: Publishing depth camera info to [/susag/depth_camera/depth/camera_info]
+[gzserver-3] [INFO] [1789770305.407488638] [susag.depth_camera_plugin]: Publishing pointcloud to [/susag/depth_camera/points]
+[gzserver-3] [INFO] [1789770305.471358797] [diff_drive]: Wheel pair 1 separation set to [0.740000m]
+[gzserver-3] [INFO] [1789770305.471384085] [diff_drive]: Wheel pair 2 separation set to [0.740000m]
+[gzserver-3] [INFO] [1789770305.471401350] [diff_drive]: Wheel pair 1 diameter set to [0.330000m]
+[gzserver-3] [INFO] [1789770305.471405803] [diff_drive]: Wheel pair 2 diameter set to [0.330000m]
+[gzserver-3] [INFO] [1789770305.472021062] [diff_drive]: Subscribed to [/cmd_vel]
+[gzserver-3] [INFO] [1789770305.473276982] [diff_drive]: Advertise odometry on [/odom]
+[gzserver-3] [INFO] [1789770305.474670758] [diff_drive]: Publishing odom transforms between [odom] and [base_link]
+[gzserver-3] [INFO] [1789770305.474685642] [diff_drive]: Publishing wheel transforms between [base_link], [front_wheel_left_joint] and [front_wheel_right_joint]
+[gzserver-3] [INFO] [1789770305.474690631] [diff_drive]: Publishing wheel transforms between [base_link], [rear_wheel_left_joint] and [rear_wheel_right_joint]
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[robot_state_publisher-1] [INFO] [1789770339.921876071] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[INFO] [robot_state_publisher-1]: process has finished cleanly [pid 85739]
+[INFO] [joint_state_publisher-2]: process has finished cleanly [pid 85741]
+[INFO] [gzserver-3]: process has finished cleanly [pid 85743]

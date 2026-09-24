@@ -107,7 +107,7 @@ TEST(CriticManagerTests, BasicCriticOperations)
   float model_dt = 0.1;
   CriticData data =
   {state, generated_trajectories, path, costs, model_dt, false, nullptr, nullptr,
-    std::nullopt, std::nullopt};
+    std::nullopt, std::nullopt, nullptr, std::nullopt};
 
   data.fail_flag = true;
   EXPECT_FALSE(critic_manager.getDummyCriticScored());
@@ -124,15 +124,16 @@ TEST(CriticManagerTests, CriticLoadingTest)
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("my_node");
   node->declare_parameter(
     "critic_manager.critics",
-    rclcpp::ParameterValue(std::vector<std::string>{"ConstraintCritic", "PreferForwardCritic"}));
+    rclcpp::ParameterValue(std::vector<std::string>{
+      "ConstraintCritic", "DynamicObstacleCritic", "PreferForwardCritic"}));
   auto costmap_ros = std::make_shared<nav2_costmap_2d::Costmap2DROS>(
     "dummy_costmap", "", "dummy_costmap");
   ParametersHandler param_handler(node);
   rclcpp_lifecycle::State state;
   costmap_ros->on_configure(state);
 
-  // This should grab the critics parameter and load the 2 requested plugins
+  // This should load the dynamic obstacle critic through pluginlib too.
   CriticManagerWrapperEnum critic_manager;
   critic_manager.on_configure(node, "critic_manager", costmap_ros, &param_handler);
-  EXPECT_EQ(critic_manager.getCriticNum(), 2u);
+  EXPECT_EQ(critic_manager.getCriticNum(), 3u);
 }

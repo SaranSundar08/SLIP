@@ -33,6 +33,7 @@
 
 #include "nav2_costmap_2d/costmap_filters/filter_values.hpp"
 #include "nav2_costmap_2d/cost_values.hpp"
+#include "nav2_tgmppi_controller/tools/obstacle_observation.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 
 namespace tgmppi
@@ -111,6 +112,8 @@ void Optimizer::initialize(
   if (!settings_.tgmppi_spacetime_obstacle_topics.empty()) {
     spacetime_obstacles_.assign(settings_.tgmppi_spacetime_obstacle_topics.size(), SpaceTimeObstacle{});
     spacetime_obstacle_received_.assign(settings_.tgmppi_spacetime_obstacle_topics.size(), false);
+    spacetime_obstacle_stamps_.assign(
+      settings_.tgmppi_spacetime_obstacle_topics.size(), rclcpp::Time(0, 0, RCL_ROS_TIME));
     for (std::size_t i = 0; i < settings_.tgmppi_spacetime_obstacle_topics.size(); ++i) {
       spacetime_obstacle_subs_.push_back(
         node->create_subscription<nav_msgs::msg::Odometry>(
@@ -181,6 +184,14 @@ void Optimizer::getParams()
     s.tgmppi_spacetime_obstacle_topics, "tgmppi_spacetime_obstacle_topics",
     std::vector<std::string>{});
   getParam(s.tgmppi_spacetime_obstacle_radius, "tgmppi_spacetime_obstacle_radius", 0.25f);
+  getParam(s.tgmppi_obstacle_timeout, "tgmppi_obstacle_timeout", 0.5f, ParameterType::Static);
+  if (utils::isBadFloat(s.tgmppi_obstacle_timeout) || s.tgmppi_obstacle_timeout < 0.05f) {
+    RCLCPP_WARN(logger_, "[TG-MPPI] invalid obstacle timeout; using 0.5 s");
+    s.tgmppi_obstacle_timeout = 0.5f;
+  }
+  getParam(
+    s.tgmppi_require_obstacle_tracking, "tgmppi_require_obstacle_tracking", false,
+    ParameterType::Static);
   getParam(s.tgmppi_spacetime_horizon, "tgmppi_spacetime_horizon", 3.0f);
   getParam(s.tgmppi_spacetime_dt_layer, "tgmppi_spacetime_dt_layer", 0.25f);
   getParam(s.tgmppi_spacetime_res, "tgmppi_spacetime_res", 0.10f);
@@ -326,10 +337,11 @@ void Optimizer::reset()
 
   noise_generator_.reset(settings_, isHolonomic());
 
+  critics_data_.gpu_batch = nullptr;
 #ifdef TGMPPI_WITH_CUDA
   if (settings_.compute_backend == "cuda") {
-    gpu_rollout_.initialize(settings_.batch_size, settings_.time_steps);
-    if (!gpu_rollout_.ready()) {
+    gpu_batch_.initialize(settings_.batch_size, settings_.time_steps);
+    if (!gpu_batch_.ready()) {
       RCLCPP_WARN(
         logger_,
         "[TG-MPPI] compute_backend:'cuda' requested but no CUDA device is "
@@ -350,6 +362,14 @@ geometry_msgs::msg::TwistStamped Optimizer::evalControl(
   const auto cycle_t0 = std::chrono::steady_clock::now();
 
   prepare(robot_pose, robot_speed, plan, goal_checker);
+
+  // In dynamic-obstacle launch mode the scan filter removes moving obstacles
+  // from the costmap. Do not plan through that blind spot if tracking has not
+  // started or a previously observed obstacle has gone stale.
+  if (obstacle_tracking_fault_) {
+    stopForDynamicSafety("moving-obstacle tracking missing or stale");
+    return getControlFromSequenceAsTwist(plan.header.stamp);
+  }
 
   do {
     optimize();
@@ -426,7 +446,7 @@ void Optimizer::optimize()
 
     // 2026-09-16 diagnostics (first offenders, capped): sampled controls after
     // the TG-MPPI bias and the rollouts, before any critic scores them.
-    {
+    if (critics_data_.gpu_batch == nullptr) {
       static unsigned int sample_logs = 0u;
       const auto & s = settings_;
       const float px = static_cast<float>(state_.pose.pose.position.x);
@@ -528,6 +548,7 @@ void Optimizer::prepare(
   path_ = utils::toTensor(plan);
   costs_.fill(0);
 
+  critics_data_.gpu_batch = nullptr;
   critics_data_.fail_flag = false;
   critics_data_.goal_checker = goal_checker;
   critics_data_.motion_model = motion_model_;
@@ -581,6 +602,7 @@ void Optimizer::clearAncillaryModeState()
 
 void Optimizer::generateNoisedTrajectories()
 {
+  critics_data_.gpu_batch = nullptr;
   clearAncillaryModeState();
   noise_generator_.setNoisedControls(state_, control_sequence_);
   noise_generator_.generateNextNoises();
@@ -607,12 +629,9 @@ void Optimizer::generateNoisedTrajectories()
   }
 
 #ifdef TGMPPI_WITH_CUDA
-  if (settings_.compute_backend == "cuda" && gpu_rollout_.ready()) {
-    // state_.cvx/cvy/cwz already carry this cycle's noise (+ TG-MPPI bias,
-    // if applied above) -- predict + integrate run on the GPU, then write
-    // the same state_.vx/vy/wz + generated_trajectories_ every critic and
-    // the visualizer already read, unchanged either way.
-    gpu_rollout_.rollout(state_, state_, generated_trajectories_, settings_.model_dt, isHolonomic());
+  if (settings_.compute_backend == "cuda" && gpu_batch_.ready()) {
+    gpu_batch_.begin(state_, generated_trajectories_, settings_.model_dt, isHolonomic());
+    critics_data_.gpu_batch = &gpu_batch_;
     return;
   }
 #endif
@@ -622,25 +641,81 @@ void Optimizer::generateNoisedTrajectories()
 
 void Optimizer::spacetimeObstacleCallback(std::size_t index, const nav_msgs::msg::Odometry & msg)
 {
+  auto node = parent_.lock();
+  if (!node || !costmap_ros_ || msg.header.frame_id.empty() ||
+    (msg.header.stamp.sec == 0 && msg.header.stamp.nanosec == 0))
+  {
+    return;
+  }
+  const rclcpp::Time stamp(msg.header.stamp, RCL_ROS_TIME);
+  const double age = (node->now() - stamp).seconds();
+  if (badObservationNumber(age) || age < -0.1 || age > settings_.tgmppi_obstacle_timeout) {
+    return;
+  }
+
+  const auto & target_frame = costmap_ros_->getGlobalFrameID();
+  geometry_msgs::msg::TransformStamped transform;
+  const geometry_msgs::msg::TransformStamped * transform_ptr = nullptr;
+  if (msg.header.frame_id != target_frame) {
+    try {
+      // Zero timeout: obstacle callbacks must never wait for TF while Nav2
+      // is trying to meet its controller deadline.
+      transform = costmap_ros_->getTfBuffer()->lookupTransform(
+        target_frame, msg.header.frame_id, stamp);
+      transform_ptr = &transform;
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_WARN_THROTTLE(
+        logger_, *node->get_clock(), 5000,
+        "[TG-MPPI] ignoring obstacle odometry: cannot transform %s to %s: %s",
+        msg.header.frame_id.c_str(), target_frame.c_str(), ex.what());
+      return;
+    }
+  }
+  const auto observation = obstacleFromOdometry(
+    msg, target_frame, transform_ptr, settings_.tgmppi_spacetime_obstacle_radius);
+  if (!observation) {return;}
+
   std::lock_guard<std::mutex> lock(spacetime_obstacles_mutex_);
   if (index >= spacetime_obstacles_.size()) {return;}
-  spacetime_obstacles_[index].x = static_cast<float>(msg.pose.pose.position.x);
-  spacetime_obstacles_[index].y = static_cast<float>(msg.pose.pose.position.y);
-  spacetime_obstacles_[index].vx = static_cast<float>(msg.twist.twist.linear.x);
-  spacetime_obstacles_[index].vy = static_cast<float>(msg.twist.twist.linear.y);
-  spacetime_obstacles_[index].radius = settings_.tgmppi_spacetime_obstacle_radius;
+  if (spacetime_obstacle_received_[index] && stamp <= spacetime_obstacle_stamps_[index]) {
+    return;  // A delayed older packet must not rewind the obstacle.
+  }
+  spacetime_obstacles_[index] = *observation;
+  spacetime_obstacle_stamps_[index] = stamp;
   spacetime_obstacle_received_[index] = true;
 }
 
 void Optimizer::snapshotTrackedObstacles()
 {
+  auto node = parent_.lock();
+  if (!node) {return;}
+  snapshotTrackedObstaclesAt(node->now());
+}
+
+void Optimizer::snapshotTrackedObstaclesAt(const rclcpp::Time & now)
+{
   tracked_obstacles_snapshot_.clear();
+  obstacle_tracking_fault_ = false;
+  std::size_t stale_count = 0u;
   std::lock_guard<std::mutex> lock(spacetime_obstacles_mutex_);
   for (std::size_t i = 0; i < spacetime_obstacles_.size(); ++i) {
     if (i < spacetime_obstacle_received_.size() && spacetime_obstacle_received_[i]) {
-      tracked_obstacles_snapshot_.push_back(spacetime_obstacles_[i]);
+      const double age = (now - spacetime_obstacle_stamps_[i]).seconds();
+      if (badObservationNumber(age) || age < -0.1 || age > settings_.tgmppi_obstacle_timeout) {
+        ++stale_count;
+        continue;
+      }
+      auto obstacle = spacetime_obstacles_[i];
+      // Prediction starts at this control cycle, not at the older odometry
+      // stamp. Account for transport and callback latency once here.
+      const float elapsed = static_cast<float>(std::max(0.0, age));
+      obstacle.x += obstacle.vx * elapsed;
+      obstacle.y += obstacle.vy * elapsed;
+      tracked_obstacles_snapshot_.push_back(obstacle);
     }
   }
+  obstacle_tracking_fault_ = stale_count != 0u ||
+    (settings_.tgmppi_require_obstacle_tracking && tracked_obstacles_snapshot_.empty());
 }
 
 // Resample a raw (x, y)-per-dt_layer path onto this controller's own
@@ -2247,6 +2322,9 @@ void Optimizer::updateControlSequence()
           }
         }
       }
+#ifdef TGMPPI_WITH_CUDA
+      if (critics_data_.gpu_batch) {gpu_batch_.refreshControls();}
+#endif
       quarantined_rows += bad_rows.size();
     }
     if (++quarantine_cycles >= 100u) {
@@ -2441,6 +2519,20 @@ void Optimizer::updateControlSequence()
     selected_mode_key_ = groups[chosen_group].key;
     (void)reason;
 
+#ifdef TGMPPI_WITH_CUDA
+    xt::xtensor<float, 3> device_means;
+    if (critics_data_.gpu_batch) {
+      std::vector<float> weights(s.batch_size, 0.0f);
+      std::vector<std::pair<unsigned int, unsigned int>> ranges;
+      for (std::size_t g = 0; g < groups.size(); ++g) {
+        ranges.emplace_back(groups[g].start, groups[g].count);
+        std::copy(group_softmax[g].begin(), group_softmax[g].end(),
+          weights.begin() + groups[g].start);
+      }
+      device_means = gpu_batch_.weightedMeans(ranges, weights);
+    }
+#endif
+
     // Per-mode memory for tgmppi_mode_warm_start (sandbox mode_nominals):
     // every group's own local weighted mean, keyed by group key; keys that
     // did not exist this cycle are forgotten. Skipped entirely when the
@@ -2464,10 +2556,17 @@ void Optimizer::updateControlSequence()
         // the stored means came back with vx == wz exactly (log 43409:
         // "warm v -1.72842 w -1.72842") or as garbage once the memory was reused
         // (-1.04e34). Owning containers make the lifetime explicit.
-        const xt::xtensor<float, 1> mean_vx =
-          xt::sum(xt::view(state_.cvx, xt::range(g0, g1), xt::all()) * sm, 0, immediate);
-        const xt::xtensor<float, 1> mean_wz =
-          xt::sum(xt::view(state_.cwz, xt::range(g0, g1), xt::all()) * sm, 0, immediate);
+        xt::xtensor<float, 1> mean_vx, mean_wz;
+#ifdef TGMPPI_WITH_CUDA
+        if (critics_data_.gpu_batch) {
+          mean_vx = xt::view(device_means, g, 0, xt::all());
+          mean_wz = xt::view(device_means, g, 1, xt::all());
+        } else
+#endif
+        {
+          mean_vx = xt::sum(xt::view(state_.cvx, xt::range(g0, g1), xt::all()) * sm, 0, immediate);
+          mean_wz = xt::sum(xt::view(state_.cwz, xt::range(g0, g1), xt::all()) * sm, 0, immediate);
+        }
         fresh[groups[g].key] = {
           std::vector<float>(mean_vx.begin(), mean_vx.end()),
           std::vector<float>(mean_wz.begin(), mean_wz.end())};
@@ -2475,18 +2574,29 @@ void Optimizer::updateControlSequence()
       mode_nominals_ = std::move(fresh);
     }
 
-    const auto & chosen = groups[chosen_group];
-    const unsigned int row0 = chosen.start;
-    const unsigned int row1 = chosen.start + chosen.count;
-    auto && softmax_extended = xt::eval(
-      xt::view(group_softmax[chosen_group], xt::all(), xt::newaxis()));
-    xt::noalias(control_sequence_.vx) = xt::sum(
-      xt::view(state_.cvx, xt::range(row0, row1), xt::all()) * softmax_extended, 0, immediate);
-    xt::noalias(control_sequence_.wz) = xt::sum(
-      xt::view(state_.cwz, xt::range(row0, row1), xt::all()) * softmax_extended, 0, immediate);
-    if (isHolonomic()) {
-      xt::noalias(control_sequence_.vy) = xt::sum(
-        xt::view(state_.cvy, xt::range(row0, row1), xt::all()) * softmax_extended, 0, immediate);
+#ifdef TGMPPI_WITH_CUDA
+    if (critics_data_.gpu_batch) {
+      control_sequence_.vx = xt::view(device_means, chosen_group, 0, xt::all());
+      control_sequence_.wz = xt::view(device_means, chosen_group, 1, xt::all());
+      if (isHolonomic()) {
+        control_sequence_.vy = xt::view(device_means, chosen_group, 2, xt::all());
+      }
+    } else
+#endif
+    {
+      const auto & chosen = groups[chosen_group];
+      const unsigned int row0 = chosen.start;
+      const unsigned int row1 = chosen.start + chosen.count;
+      auto && softmax_extended = xt::eval(
+        xt::view(group_softmax[chosen_group], xt::all(), xt::newaxis()));
+      xt::noalias(control_sequence_.vx) = xt::sum(
+        xt::view(state_.cvx, xt::range(row0, row1), xt::all()) * softmax_extended, 0, immediate);
+      xt::noalias(control_sequence_.wz) = xt::sum(
+        xt::view(state_.cwz, xt::range(row0, row1), xt::all()) * softmax_extended, 0, immediate);
+      if (isHolonomic()) {
+        xt::noalias(control_sequence_.vy) = xt::sum(
+          xt::view(state_.cvy, xt::range(row0, row1), xt::all()) * softmax_extended, 0, immediate);
+      }
     }
     applyControlSequenceConstraints();
     return;
@@ -2497,10 +2607,21 @@ void Optimizer::updateControlSequence()
   auto && softmaxes = xt::eval(exponents / xt::sum(exponents, immediate));
   auto && softmaxes_extened = xt::eval(xt::view(softmaxes, xt::all(), xt::newaxis()));
 
-  xt::noalias(control_sequence_.vx) = xt::sum(state_.cvx * softmaxes_extened, 0, immediate);
-  xt::noalias(control_sequence_.wz) = xt::sum(state_.cwz * softmaxes_extened, 0, immediate);
-  if (isHolonomic()) {
-    xt::noalias(control_sequence_.vy) = xt::sum(state_.cvy * softmaxes_extened, 0, immediate);
+#ifdef TGMPPI_WITH_CUDA
+  if (critics_data_.gpu_batch) {
+    const std::vector<float> weights(softmaxes.begin(), softmaxes.end());
+    const auto means = gpu_batch_.weightedMeans({{0u, s.batch_size}}, weights);
+    control_sequence_.vx = xt::view(means, 0, 0, xt::all());
+    control_sequence_.wz = xt::view(means, 0, 1, xt::all());
+    if (isHolonomic()) {control_sequence_.vy = xt::view(means, 0, 2, xt::all());}
+  } else
+#endif
+  {
+    xt::noalias(control_sequence_.vx) = xt::sum(state_.cvx * softmaxes_extened, 0, immediate);
+    xt::noalias(control_sequence_.wz) = xt::sum(state_.cwz * softmaxes_extened, 0, immediate);
+    if (isHolonomic()) {
+      xt::noalias(control_sequence_.vy) = xt::sum(state_.cvy * softmaxes_extened, 0, immediate);
+    }
   }
 
   applyControlSequenceConstraints();
@@ -2574,7 +2695,11 @@ bool Optimizer::finalSequenceIsDynamicallySafe()
   updateStateVelocities(final_safety_state_);
   integrateStateVelocities(final_safety_trajectory_, final_safety_state_);
 
-  const auto & p = *critics_data_.dynamic_obstacle_params;
+  // The critic may score every third point to meet the controller deadline.
+  // For the single sequence about to become cmd_vel, check every model step:
+  // otherwise a short contact between the scored points escapes the veto.
+  auto p = *critics_data_.dynamic_obstacle_params;
+  p.point_step = 1u;
   const auto r = scoreRolloutAgainstPredictions(
     final_safety_trajectory_.x.data(), final_safety_trajectory_.y.data(),
     final_safety_trajectory_.yaws.data(), settings_.time_steps,
@@ -2660,6 +2785,9 @@ void Optimizer::setSpeedLimit(double speed_limit, bool percentage)
 
 models::Trajectories & Optimizer::getGeneratedTrajectories()
 {
+#ifdef TGMPPI_WITH_CUDA
+  if (critics_data_.gpu_batch) {gpu_batch_.materializeHost();}
+#endif
   return generated_trajectories_;
 }
 

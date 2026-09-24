@@ -35,6 +35,7 @@ namespace tgmppi
 {
 
 class FlowField;
+class GpuBatch;
 
 /**
  * @struct tgmppi::CriticData
@@ -66,17 +67,9 @@ struct CriticData
   // it's "cpu", exactly like Optimizer::generateNoisedTrajectories() does.
   const std::string & compute_backend;
 
-  // Opaque tgmppi::GpuRollout* (cast only where TGMPPI_WITH_CUDA is
-  // defined), non-null iff this cycle's rollout ran on the GPU. Lets a
-  // GPU-capable critic (e.g. CostCritic) read the already-resident
-  // trajectory tensors directly -- via GpuRollout::trajX()/trajY() -- and
-  // chain its own compute onto them with no CPU round-trip in between,
-  // instead of every GPU critic re-uploading trajectories.x/y itself.
-  // Two additively-ported critics that each did their own independent
-  // round trip (see PROJECT_STATUS.md 2026-09-10, slices 1 and 2) both
-  // ended up SLOWER than CPU purely from that overhead -- this is the
-  // fix, one shared upload consumed by every critic that can use it.
-  const void * gpu_rollout{nullptr};
+  // Current device batch, set only after a successful CUDA rollout.
+  // Forward declaration keeps CPU builds independent of LibTorch.
+  GpuBatch * gpu_batch{nullptr};
 
   // Tracked moving obstacles (received ground-truth states only), snapshotted
   // once per cycle in Optimizer::prepare(). nullptr when none have been
@@ -89,9 +82,9 @@ struct CriticData
   // The optimizer owns this buffer and resets it before every critic pass.
   std::vector<uint8_t> * dynamic_collision_rows{nullptr};
 
-  // Exact geometry and prediction settings used by DynamicObstacleCritic this
-  // cycle. The optimizer uses this only for the final post-smoothing veto, so
-  // the command check cannot silently diverge from the rollout critic.
+  // Geometry and prediction settings used by DynamicObstacleCritic this cycle.
+  // The final command veto uses them with point_step=1 to catch contacts
+  // between the critic's cost-sampling points.
   std::optional<DynamicObstacleCostParams> dynamic_obstacle_params;
 };
 

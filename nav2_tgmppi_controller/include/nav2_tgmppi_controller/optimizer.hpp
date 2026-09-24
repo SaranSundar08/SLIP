@@ -55,7 +55,7 @@
 #include "nav2_tgmppi_controller/tools/parameters_handler.hpp"
 #include "nav2_tgmppi_controller/tools/utils.hpp"
 #ifdef TGMPPI_WITH_CUDA
-#include "nav2_tgmppi_controller/tools/gpu_rollout.hpp"
+#include "nav2_tgmppi_controller/tools/gpu_batch.hpp"
 #endif
 
 #ifdef __APPLE__
@@ -332,7 +332,7 @@ protected:
   // compute_backend:"cuda" -- see generateNoisedTrajectories(). Absent
   // entirely (not just inert) from a default build; no LibTorch dependency
   // unless built with -DTGMPPI_WITH_CUDA=ON.
-  GpuRollout gpu_rollout_;
+  GpuBatch gpu_batch_;
 #endif
   rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr
     tgmppi_debug_pub_;
@@ -411,13 +411,16 @@ protected:
   spacetime_obstacle_subs_;
   std::mutex spacetime_obstacles_mutex_;
   std::vector<SpaceTimeObstacle> spacetime_obstacles_;
+  std::vector<rclcpp::Time> spacetime_obstacle_stamps_;
   // Whether each configured obstacle topic has delivered at least one message.
   // Before that its entry is not a real obstacle and must not be used.
   std::vector<bool> spacetime_obstacle_received_;
-  // Received obstacles only, copied under the mutex once per cycle in prepare();
-  // shared by trySpacetimeAlternatives() and DynamicObstacleCritic.
+  // Fresh observations only, projected to the current cycle time under the
+  // mutex in prepare(); shared by space-time search and DynamicObstacleCritic.
   std::vector<SpaceTimeObstacle> tracked_obstacles_snapshot_;
+  bool obstacle_tracking_fault_{false};
   void snapshotTrackedObstacles();
+  void snapshotTrackedObstaclesAt(const rclcpp::Time & now);
   void spacetimeObstacleCallback(std::size_t index, const nav_msgs::msg::Odometry & msg);
   // Checks each valid pseudopod for a predicted moving-obstacle crossing
   // and, if found, appends up to 2 extra modes (wait/detour) into
@@ -484,11 +487,7 @@ protected:
   CriticData critics_data_ =
   {state_, generated_trajectories_, path_, costs_, settings_.model_dt, false, nullptr, nullptr,
     std::nullopt, std::nullopt, nullptr, settings_.compute_backend,
-#ifdef TGMPPI_WITH_CUDA
-    &gpu_rollout_
-#else
     nullptr
-#endif
     , nullptr, &dynamic_collision_rows_, std::nullopt
   };  /// Caution, keep references
 

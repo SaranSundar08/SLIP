@@ -93,16 +93,10 @@ add_library(tgmppi_controller SHARED
   src/noise_generator.cpp
   src/tools/space_time_search.cpp
   src/tools/space_time_body.cpp
-  src/tools/gpu_rollout.cpp
 )
 
 add_library(tgmppi_critics SHARED
   src/flow_field.cpp
-  src/tools/gpu_cost_critic.cpp
-  src/tools/gpu_goal_critic.cpp
-  src/tools/gpu_flow_field_critic.cpp
-  src/tools/gpu_elementwise_critics.cpp
-  src/tools/gpu_path_align_critic.cpp
   src/critics/obstacles_critic.cpp
   src/critics/cost_critic.cpp
   src/critics/dynamic_obstacle_critic.cpp
@@ -119,6 +113,22 @@ add_library(tgmppi_critics SHARED
 )
 
 set(libraries tgmppi_controller tgmppi_critics)
+if(TGMPPI_WITH_CUDA)
+  # One backend library owns shared batch data and all device computations.
+  # Both plugins link it explicitly; neither relies on dlopen symbol leakage.
+  add_library(tgmppi_gpu SHARED
+    src/tools/gpu_batch.cpp
+    src/tools/gpu_rollout.cpp
+    src/tools/gpu_cost_critic.cpp
+    src/tools/gpu_goal_critic.cpp
+    src/tools/gpu_flow_field_critic.cpp
+    src/tools/gpu_elementwise_critics.cpp
+    src/tools/gpu_path_align_critic.cpp
+  )
+  list(APPEND libraries tgmppi_gpu)
+  target_link_libraries(tgmppi_controller tgmppi_gpu)
+  target_link_libraries(tgmppi_critics tgmppi_gpu)
+endif()
 
 foreach(lib IN LISTS libraries)
   target_compile_options(${lib} PUBLIC -fconcepts)
@@ -141,13 +151,13 @@ if(TGMPPI_WITH_CUDA)
     # a fresh terminal failed with "libc10.so: cannot open shared object file"
     # and Nav2 aborted bringup (2026-09-20). Bake the path in instead.
     set_target_properties(${lib} PROPERTIES
-      INSTALL_RPATH "${TORCH_INSTALL_PREFIX}/lib"
+      INSTALL_RPATH "$ORIGIN;${TORCH_INSTALL_PREFIX}/lib"
       BUILD_WITH_INSTALL_RPATH TRUE)
   endforeach()
   message(STATUS "TG-MPPI: LibTorch RPATH -> ${TORCH_INSTALL_PREFIX}/lib")
 endif()
 
-install(TARGETS tgmppi_controller tgmppi_critics
+install(TARGETS ${libraries}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -174,6 +184,13 @@ if(BUILD_TESTING)
   if(TARGET optimizer_sampling_test)
     target_link_libraries(optimizer_sampling_test tgmppi_controller)
     ament_target_dependencies(optimizer_sampling_test ${dependencies_pkgs})
+  endif()
+  if(TGMPPI_WITH_CUDA)
+    ament_add_gtest(gpu_batch_test test/gpu_batch_test.cpp)
+    if(TARGET gpu_batch_test)
+      target_link_libraries(gpu_batch_test tgmppi_controller tgmppi_critics tgmppi_gpu)
+      ament_target_dependencies(gpu_batch_test ${dependencies_pkgs})
+    endif()
   endif()
   set(ament_cmake_copyright_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()

@@ -3,6 +3,10 @@
 #include <cmath>
 #include <vector>
 
+#ifdef TGMPPI_WITH_CUDA
+#include "nav2_tgmppi_controller/tools/gpu_batch.hpp"
+#endif
+
 namespace tgmppi::critics
 {
 
@@ -61,6 +65,12 @@ void DynamicObstacleCritic::score(CriticData & data)
       nearby.push_back(o);
     }
   }
+#ifdef TGMPPI_WITH_CUDA
+  if (data.gpu_batch) {
+    data.gpu_batch->dynamicCosts(nearby, params_, weight_, power_);
+    return;
+  }
+#endif
   if (nearby.empty()) {
     return;
   }

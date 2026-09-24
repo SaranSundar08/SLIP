@@ -16,8 +16,7 @@
 
 #include <cmath>
 #ifdef TGMPPI_WITH_CUDA
-#include <cstring>
-#include "nav2_tgmppi_controller/tools/gpu_rollout.hpp"
+#include "nav2_tgmppi_controller/tools/gpu_batch.hpp"
 #endif
 
 #include "nav2_tgmppi_controller/tools/flow_field.hpp"
@@ -52,24 +51,27 @@ void FlowFieldCritic::score(CriticData & data)
 #ifdef TGMPPI_WITH_CUDA
   if (data.compute_backend == "cuda" && gpu_critic_.ready()) {
     auto cost_out = xt::xtensor<float, 1>::from_shape({data.costs.shape(0)});
-    if (data.gpu_rollout != nullptr) {
+    if (data.gpu_batch != nullptr) {
       // Chained: reads the rollout's already-resident trajectory tensors
       // directly, uploading only the flow field's own grid (which the
       // rollout has no reason to already have).
-      const auto * rollout = static_cast<const GpuRollout *>(data.gpu_rollout);
+      const auto * rollout = data.gpu_batch;
       auto grid = GpuFlowFieldCritic::uploadGrid(ff);
       auto cost_gpu = gpu_critic_.computeDevice(
         rollout->trajX(), rollout->trajY(), grid, ff.sizeX(), ff.sizeY(),
         ff.originX(), ff.originY(), ff.resolution(), ff.dmax(),
         weight_, running_weight_, power_);
-      auto cost_cpu = cost_gpu.to(torch::kCPU).contiguous();
-      std::memcpy(
-        cost_out.data(), cost_cpu.data_ptr<float>(), cost_out.size() * sizeof(float));
+      data.gpu_batch->addCosts(cost_gpu);
+      return;
     } else {
       gpu_critic_.score(data.trajectories, ff, weight_, running_weight_, power_, cost_out);
     }
     data.costs += cost_out;
     return;
+  }
+  if (data.gpu_batch) {
+    data.gpu_batch->materializeHost();
+    data.gpu_batch->flushCosts(data.costs);
   }
 #endif
 

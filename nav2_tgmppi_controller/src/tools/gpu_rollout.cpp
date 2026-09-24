@@ -84,9 +84,8 @@ void GpuRollout::rollout(
     static_cast<float>(state_in.speed.linear.x), static_cast<float>(state_in.speed.linear.y),
     static_cast<float>(state_in.speed.angular.z), is_holonomic);
 
-  // Download: every downstream consumer (critics, trajectory_visualizer)
-  // keeps reading the same CPU xtensor structures every cycle regardless of
-  // backend -- only how they got filled changed.
+  // Compatibility wrapper for callers explicitly requesting CPU output.
+  // The optimizer uses GpuBatch::begin()/materializeHost() instead.
   auto copy_down = [](const torch::Tensor & src, float * dst) {
       auto cpu = src.to(torch::kCPU).contiguous();
       std::memcpy(dst, cpu.data_ptr<float>(), cpu.numel() * sizeof(float));
@@ -120,6 +119,8 @@ void GpuRollout::computeDevice(
   if (is_holonomic) {
     vy_.index_put_({Slice(), Slice(1, None)}, cvy.index({Slice(), Slice(0, -1)}));
     vy_.index_put_({Slice(), 0}, speed_vy);
+  } else {
+    vy_.zero_();
   }
 
   // integrateStateVelocities(): cumulative diff-drive kinematics. Matches

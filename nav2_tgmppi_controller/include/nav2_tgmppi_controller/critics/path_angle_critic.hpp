@@ -45,6 +45,7 @@ public:
    * @param costs [out] add goal angle cost values to this tensor
    */
   void score(CriticData & data) override;
+  bool supportsGpuBatch() const override {return true;}
 
 protected:
   float max_angle_to_furthest_{0};

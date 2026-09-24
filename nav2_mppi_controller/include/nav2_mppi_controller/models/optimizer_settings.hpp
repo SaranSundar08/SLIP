@@ -68,7 +68,7 @@ struct OptimizerSettings
   MPPIVariant variant{MPPIVariant::VANILLA};
   float lognormal_sigma{0.1f};        // log-MPPI: std of the log-normal scale factor
   float lowpass_cutoff_hz{2.0f};      // LP-MPPI: -3dB cutoff (Hz); lower = smoother
-  int   lowpass_order{1};             // LP-MPPI: cascaded EMA passes; higher = steeper rolloff
+  int lowpass_order{1};               // LP-MPPI: cascaded EMA passes; higher = steeper rolloff
   float bias_strength{0.5f};          // Biased-MPPI: fraction of samples shifted to ancillary
   float bias_lookahead_dist{0.6f};    // Biased-MPPI: pursuit lookahead distance (m)
   float bias_gain{1.5f};              // Biased-MPPI: pursuit heading P-gain

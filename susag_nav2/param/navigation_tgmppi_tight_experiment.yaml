@@ -1,0 +1,705 @@
+# TIGHT-TIER variant of navigation_tgmppi.yaml for near-limit BARN worlds
+# (unscaled / scaled_1.2): 2.5 cm costmaps resolve the thin wet channel,
+# 5x5 m local window = sandbox-validated +-2.5 m tgmppi body, narrow yaw
+# sampling + low speed for aligned gap threading. Footprints untouched.
+amcl:
+  ros__parameters:
+    use_sim_time: false
+    # Gazebo wheel odometry is substantially cleaner than physical skid-steer
+    # odometry. Large motion-noise values made AMCL jump map->odom while yawing.
+    alpha1: 0.08
+    alpha2: 0.05
+    alpha3: 0.05
+    alpha4: 0.08
+    alpha5: 0.05
+    base_frame_id: "base_link"
+    beam_skip_distance: 0.5
+    beam_skip_error_threshold: 0.9
+    beam_skip_threshold: 0.3
+    do_beamskip: false
+    global_frame_id: "map"
+    lambda_short: 0.1
+    laser_likelihood_max_dist: 2.0
+    laser_max_range: 100.0
+    laser_min_range: -1.0
+    laser_model_type: "likelihood_field"
+    max_beams: 120
+    max_particles: 2000
+    min_particles: 500
+    odom_frame_id: "odom"
+    pf_err: 0.05
+    pf_z: 0.99
+    recovery_alpha_fast: 0.0
+    recovery_alpha_slow: 0.0
+    resample_interval: 1
+    robot_model_type: "nav2_amcl::DifferentialMotionModel"
+    save_pose_rate: 0.5
+    sigma_hit: 0.2
+    tf_broadcast: true
+    transform_tolerance: 1.0
+    update_min_a: 0.12     # was 0.18: update on smaller motion, converge faster in
+                            # tight/dynamic spaces where waiting to move 10+ degrees
+                            # before the next update is too slow to react
+    update_min_d: 0.08     # was 0.12, same reasoning
+    z_hit: 0.75            # was 0.9: less confident that every beam should match the
+                            # STATIC map, since moving_obstacle_1/2 aren't in it
+    z_max: 0.05
+    z_rand: 0.20           # was 0.05 (2026-09-13): the actual fix. A moving obstacle's
+                            # laser returns don't match the static map at all; with
+                            # z_rand this low, AMCL's likelihood-field model treated
+                            # every such beam as strong evidence AGAINST the correct
+                            # pose, corrupting the estimate (observed live: AMCL vs.
+                            # ground-truth Y drifted up to ~0.5m in world_48_dynamic).
+                            # Raising z_rand tells the model to expect a chunk of
+                            # "doesn't match the map" beams as normal/tolerated rather
+                            # than penalized -- the standard Nav2/AMCL fix for
+                            # environments with obstacles the localization map doesn't
+                            # know about.
+    z_short: 0.0
+    scan_topic: front_scan   # 2026-09-15: front lidar only, matching the real-robot trials
+                             # (no rear lidar on hardware). The merged /scan was measured
+                             # accurate (median 1.4 cm vs known walls) -- not a fix, a match.
+
+amcl_map_client:
+  ros__parameters:
+    use_sim_time: false
+
+amcl_rclcpp_node:
+  ros__parameters:
+    use_sim_time: false
+
+bt_navigator:
+  ros__parameters:
+    use_sim_time: false
+    global_frame: map
+    robot_base_frame: base_link
+    odom_topic: /odom
+    bt_loop_duration: 10
+    default_server_timeout: 20
+    enable_groot_monitoring: true
+    groot_zmq_publisher_port: 1666
+    groot_zmq_server_port: 1667
+    default_nav_to_pose_bt_xml: /home/saran/robohouse_ws/src/susag_nav2/behavior_trees/navigate_to_pose_w_replanning_no_spin.xml  # 2026-09-15: default tree minus Spin recovery (both tight yamls)
+    plugin_lib_names:
+    - nav2_compute_path_to_pose_action_bt_node
+    - nav2_compute_path_through_poses_action_bt_node
+    - nav2_follow_path_action_bt_node
+    - nav2_back_up_action_bt_node
+    - nav2_spin_action_bt_node
+    - nav2_wait_action_bt_node
+    - nav2_clear_costmap_service_bt_node
+    - nav2_is_stuck_condition_bt_node
+    - nav2_goal_reached_condition_bt_node
+    - nav2_goal_updated_condition_bt_node
+    - nav2_initial_pose_received_condition_bt_node
+    - nav2_reinitialize_global_localization_service_bt_node
+    - nav2_rate_controller_bt_node
+    - nav2_distance_controller_bt_node
+    - nav2_speed_controller_bt_node
+    - nav2_truncate_path_action_bt_node
+    - nav2_goal_updater_node_bt_node
+    - nav2_recovery_node_bt_node
+    - nav2_pipeline_sequence_bt_node
+    - nav2_round_robin_node_bt_node
+    - nav2_transform_available_condition_bt_node
+    - nav2_time_expired_condition_bt_node
+    - nav2_distance_traveled_condition_bt_node
+    - nav2_single_trigger_bt_node
+    - nav2_is_battery_low_condition_bt_node
+    - nav2_navigate_through_poses_action_bt_node
+    - nav2_navigate_to_pose_action_bt_node
+    - nav2_remove_passed_goals_action_bt_node
+    - nav2_planner_selector_bt_node
+    - nav2_controller_selector_bt_node
+    - nav2_goal_checker_selector_bt_node
+
+bt_navigator_rclcpp_node:
+  ros__parameters:
+    use_sim_time: false
+
+controller_server:
+  ros__parameters:
+    use_sim_time: false
+    controller_frequency: 20.0
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.001
+    min_theta_velocity_threshold: 0.001
+    failure_tolerance: 0.3
+    progress_checker_plugin: "progress_checker"
+    goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
+    controller_plugins: ["FollowPath"]
+
+    # Progress checker parameters
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.5
+      movement_time_allowance: 10.0
+
+    # Goal checker parameters
+    general_goal_checker:
+      stateful: true
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.25
+      yaw_goal_tolerance: 0.25
+
+    # TgMppi (shape-conditioned MPPI) parameters
+    FollowPath:
+      plugin: "nav2_tgmppi_controller::TgMppiController"
+      prune_distance: 10.0
+
+      # --- TG-MPPI flow bias (this controller's core behavior) -------------
+      tgmppi_bias_strength: 0.2      # Phase 3: conservative seeded fraction; tune only after A/B tests
+      tgmppi_group_allocation: "equal"   # was "legacy" -- experiment
+      tgmppi_bias_gain: 1.0          # Kp: heading error -> yaw rate (1.5 oscillated left/right)
+      tgmppi_lookahead_dist: 1.2     # was 0.6 -- experiment, unvalidated guess (not
+                                     # speed_params()-scaled like the others; roughly
+                                     # doubled since vx_max is ~4x the original 0.35 m/s)
+      tgmppi_goal_dist: 1.0          # within this range of goal, disable tgmppi (plain MPPI docks)
+      # amoeba_sandbox nominal_fb port (2026-09-11, opt-in like the sandbox
+      # itself): default 0.15/false reproduces prior behavior exactly.
+      # 1.0 disables heading-based slowdown on each pseudopod's ancillary
+      # reference (drive it at full speed), relying on the fallback to
+      # retry with 0.15 if that turns out infeasible for a given pseudopod.
+      tgmppi_reference_min_speed_ratio: 1.0
+      tgmppi_reference_infeasible_fallback: true
+      # amoeba_sandbox grouped_sampling.py port (2026-09-13), V3 only (no
+      # cross-cycle hysteresis -- see optimizer_settings.hpp docstring).
+      # false = exactly today's single-shared-softmax update. true = each
+      # pseudopod's row block (+ wait/unbiased blocks) gets its own local
+      # softmax, single best-scoring group's mean wins outright instead of
+      # blending across all of them. Dynamic param -- flip live with
+      # `ros2 param set /controller_server FollowPath.tgmppi_grouped_update
+      # true|false` to test without relaunching.
+      tgmppi_grouped_update: true    # 2026-09-15: ON -- the stabilizers below live in
+                                     # the grouped update; the frozen sandbox amoeba is
+                                     # grouped_sampling=True (v7_benchmark.py:63), so
+                                     # false was never the sandbox config anyway.
+      # --- 2026-09-15 stabilizer port (sandbox frozen values) ---------------
+      # Each knob's default in the plugin reproduces the pre-port behaviour;
+      # these are the amoeba_sandbox values (AmoebaHybrid / MPPI defaults used
+      # by the frozen v7_benchmark.py amoeba config). See optimizer_settings.hpp.
+      tgmppi_pod_tracking: true          # pseudopods.py BranchTracker
+      tgmppi_pod_match_distance: 1.0     #   match_distance (m)
+      tgmppi_mode_min_dwell: 3           # tuning candidate: 0.15 s at 20 Hz
+      tgmppi_mode_confirm_cycles: 1      # tuning candidate: accept improvement without extra confirmation cycles
+      tgmppi_mode_switch_margin: 0.1     # mppi.py mode_switch_margin -- SANDBOX cost units;
+                                         # calibrate against the "[TGMPPI] mode switch" debug
+                                         # log (Nav2 critic costs are on a different scale)
+      tgmppi_mode_warm_start: 0.7        # mppi.py mode_warm_start
+      tgmppi_assist_ramp_rate: 0.2       # AmoebaHybrid gate_rate
+      tgmppi_bias_deadband: 0.08         # AmoebaHybrid bias_deadband (rad)
+      tgmppi_pod_cruise_speed: 0.35      # pod reference cruise floor (was hard-coded 0.18 -> mode 0 crept at 0.15-0.22 m/s)
+      # amoeba_sandbox spacetime.py Phase 1 port (2026-09-13). UNLIKE
+      # tgmppi_grouped_update above, this is read ONCE at controller
+      # configure to set up the obstacle subscriptions -- not a live
+      # ros2 param set toggle, needs a relaunch to take effect. Only
+      # meaningful with world_48_dynamic (susag_gazebo_plugins) running;
+      # inert (never subscribes, never triggers) otherwise.
+      tgmppi_spacetime_enabled: true
+      tgmppi_spacetime_obstacle_topics:
+        - "/moving_obstacle_1/ground_truth/odom"
+        - "/moving_obstacle_2/ground_truth/odom"
+        - "/moving_obstacle_3/ground_truth/odom"
+        - "/moving_obstacle_4/ground_truth/odom"
+        - "/moving_obstacle_5/ground_truth/odom"
+        - "/moving_obstacle_6/ground_truth/odom"
+        - "/moving_obstacle_7/ground_truth/odom"
+        - "/moving_obstacle_8/ground_truth/odom"
+        - "/moving_obstacle_9/ground_truth/odom"
+        - "/moving_obstacle_10/ground_truth/odom"
+        - "/moving_obstacle_11/ground_truth/odom"
+        - "/moving_obstacle_12/ground_truth/odom"
+        - "/moving_obstacle_13/ground_truth/odom"
+        - "/moving_obstacle_14/ground_truth/odom"
+        - "/moving_obstacle_15/ground_truth/odom"
+        - "/moving_obstacle_16/ground_truth/odom"
+        - "/moving_obstacle_17/ground_truth/odom"
+        - "/moving_obstacle_18/ground_truth/odom"
+        - "/moving_obstacle_19/ground_truth/odom"
+        - "/moving_obstacle_20/ground_truth/odom"
+        - "/moving_obstacle_21/ground_truth/odom"
+        - "/moving_obstacle_22/ground_truth/odom"
+        - "/moving_obstacle_23/ground_truth/odom"
+        - "/moving_obstacle_24/ground_truth/odom"
+        - "/moving_obstacle_25/ground_truth/odom"
+        - "/moving_obstacle_26/ground_truth/odom"
+        - "/moving_obstacle_27/ground_truth/odom"
+        - "/moving_obstacle_28/ground_truth/odom"
+        - "/moving_obstacle_29/ground_truth/odom"
+        - "/moving_obstacle_30/ground_truth/odom"
+        - "/moving_obstacle_31/ground_truth/odom"
+        - "/moving_obstacle_32/ground_truth/odom"
+        - "/moving_obstacle_33/ground_truth/odom"
+        - "/moving_obstacle_34/ground_truth/odom"
+        - "/moving_obstacle_35/ground_truth/odom"
+        - "/moving_obstacle_36/ground_truth/odom"
+        - "/moving_obstacle_37/ground_truth/odom"
+        - "/moving_obstacle_38/ground_truth/odom"
+        - "/moving_obstacle_39/ground_truth/odom"
+        - "/moving_obstacle_40/ground_truth/odom"
+        - "/moving_obstacle_41/ground_truth/odom"
+        - "/moving_obstacle_42/ground_truth/odom"
+        - "/moving_obstacle_43/ground_truth/odom"
+        - "/moving_obstacle_44/ground_truth/odom"
+        - "/moving_obstacle_45/ground_truth/odom"
+        - "/moving_obstacle_46/ground_truth/odom"
+        - "/moving_obstacle_47/ground_truth/odom"
+        - "/moving_obstacle_48/ground_truth/odom"
+        - "/moving_obstacle_49/ground_truth/odom"
+        - "/moving_obstacle_50/ground_truth/odom"
+
+      # Space-time blob (branch space-time-blob, docs/space_time_blob_design.md): false keeps
+      # the wait/detour search above unchanged; true replaces it with the geodesic blob lifted
+      # into (x, y, t). Toggle from the launch line with spacetime_blob:=true.
+      tgmppi_spacetime_blob: true    # was false -- experiment
+      tgmppi_spacetime_blob_pods: true    # was false -- experiment
+      tgmppi_spacetime_blob_gate: 0.2
+      tgmppi_spacetime_blob_robot_radius: 0.55   # tuning candidate: 0.80 m centre clearance from a 0.25 m obstacle
+      tgmppi_spacetime_blob_max_regret: 1.0
+      tgmppi_spacetime_obstacle_radius: 0.30   # shared across all five obstacles --
+                                                # world_open_dynamic.world alternates
+                                                # 0.25/0.20m, so 0.25 is a safe margin,
+                                                # not exact; per-obstacle radii would
+                                                # need a real (not yet built) config
+                                                # list instead of one scalar. Note:
+                                                # trySpacetimeAlternatives() budgets
+                                                # at most 2 extra modes per cycle
+                                                # regardless of how many obstacles are
+                                                # tracked, so 5 obstacles raises the
+                                                # difficulty of picking well, not the
+                                                # risk of overflowing ancillary-mode
+                                                # storage (kMaxAncillaryModes=5).
+      tgmppi_spacetime_horizon: 4.0  # tuning candidate; launch max_speed overrides this to 3.0
+      tgmppi_spacetime_dt_layer: 0.30
+      tgmppi_spacetime_res: 0.10
+      tgmppi_spacetime_window: 2.5
+      tgmppi_spacetime_relevance: 0.35  # was 0.0 = only an actual predicted OVERLAP of the
+                                        # pseudopod centreline with an obstacle disc counted
+                                        # as a crossing, which never fired in any bag. 0.35 m
+                                        # = "passes within 35 cm of a predicted obstacle".
+                                        # Detection reach is limited to search_speed*horizon
+                                        # = (res/dt_layer)*horizon = 0.333*4.0 = 1.33 m of
+                                        # pseudopod arc; raise horizon (not res/dt_layer,
+                                        # which must stay ~vx_max) if that is still too short.
+      tgmppi_debug: true             # geodesic body/membrane markers (light enough for normal use)
+      tgmppi_ancillary_debug: true   # three lightweight /tgmppi/ancillary_path_* topics
+
+      # Phase 3 authority gates. Shadow is the master safety override.
+      # Start with ancillary sampling alone so its effect is attributable.
+      tgmppi_shadow_mode: false
+      tgmppi_bias_enabled: true
+      flow_critic_enabled: false
+      tgmppi_body_radius: 6.0       # was 2.5 -- experiment
+      tgmppi_debug_grid: false      # optional internal direction arrows
+      tgmppi_debug_arrow_spacing: 0.40
+      tgmppi_debug_arrow_length: 0.18
+      tgmppi_debug_arrow_width: 0.015
+
+      flow_reflood_every: 2          # was 4 -- experiment (10 Hz, obstacles now up to 1.5 m/s)
+      flow_viscosity: 1.5            # water physics: flood resistance near walls; wide channels
+                                     # flow freely, pinches drag (0 = old pure-geodesic flood)
+      flow_promise_temperature: 0.75 # lower = concentrate samples on the best membrane promise
+      flow_max_pseudopods: 5        # was 3 -- experiment
+      flow_path_seed: true           # window-boundary promise = dist-to-plan + remaining length
+                                     # (false = straight-line to plan end, planner-free mode)
+      ancillary_collision_check: true   # Phase 4: reject unsafe ancillary mean rollouts
+      ancillary_collision_stride: 1     # validate the full footprint at every horizon pose
+      flow_assist_only_when_path_blocked: true # NORMAL follows A*; TgMppi assists only if blocked
+      flow_path_check_distance: 1.5      # inspect this much upcoming transformed path (m)
+      flow_path_blocked_ratio: 0.07      # mirrors Nav2 PathAlign occupancy gating
+      flow_clear_confirm_cycles: 3       # reject one-frame costmap flicker before leaving ASSIST
+      flow_wait_enabled: true            # offer stationary rollouts when the path is temporarily blocked
+      flow_wait_fraction: 0.20           # reserve 20% of the biased rows; MPPI still chooses the winner
+      flow_rejoin_lateral_weight: 3.0    # prefer bypasses that remain close to the A* path
+      flow_rejoin_remaining_weight: 2.0  # prefer modes that have rejoined by the horizon endpoint
+
+      time_steps: 56
+      model_dt: 0.05
+      batch_size: 2000
+      compute_backend: "cuda"   # GPU rollout + CostCritic/GoalCritic/FlowFieldCritic/
+                                # 5 elementwise critics chained; PathAlignCritic stays
+                                # CPU-only. Real live measurement (2026-09-11): 4.87ms/
+                                # cycle avg vs 8.45ms/cycle on "cpu" -- ~1.73x end-to-end
+                                # speedup. Falls back to "cpu" automatically if no CUDA
+                                # device is found or this .so wasn't built with
+                                # -DTGMPPI_WITH_CUDA=ON. See PROJECT_STATUS.md.
+
+      vx_std: 0.3   # let MPPI explore slowing down before tight turns
+      vy_std: 0.2
+      wz_std: 0.7   # broader angular exploration for tight BARN corners
+      vx_max: 3.0  
+      vx_min: -3.0
+      vy_max: 0.5
+      wz_max: 1.9
+      ax_max: 10.0
+      ax_min: -10.0
+      ay_min: -10.0
+      ay_max: 10.0
+      az_max: 5.0
+      iteration_count: 1
+      temperature: 0.3
+      gamma: 0.015
+      motion_model: "DiffDrive"
+      visualize: false               # disable batched trajectory cloud to reduce trial overhead
+      reset_period: 1.0 # (only in Humble)
+      regenerate_noises: false
+      TrajectoryVisualizer:
+        trajectory_step: 25   # draw ~80 of 2000 rollouts -> the two wrap bundles become visible
+        time_step: 2          # every other point per curve, still smooth
+        publish_every_n: 4    # 5 Hz display at the 20 Hz controller rate
+      AckermannConstraints:
+        min_turning_r: 0.2
+      # FlowFieldCritic is loaded but receives no field while
+      # flow_critic_enabled=false. This phase isolates ancillary sampling.
+      critics: ["ConstraintCritic", "CostCritic", "DynamicObstacleCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic", "FlowFieldCritic"]
+      # ray-mode ablation critics list (original):
+      # critics: ["ConstraintCritic", "CostCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic"]
+      FlowFieldCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0       # water level at the trajectory end (sandbox goal_w)
+        running_weight: 2.0    # mean water level over the horizon (sandbox run_w)
+      ConstraintCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 4.0
+      GoalCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        threshold_to_consider: 1.4
+      GoalAngleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 3.0
+        threshold_to_consider: 0.5
+      PreferForwardCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 1.0       # do not suppress slow/pivoting corner solutions
+        threshold_to_consider: 0.5
+      # ObstaclesCritic:
+      #   enabled: true
+      #   cost_power: 1
+      #   repulsion_weight: 1.5
+      #   critical_weight: 20.0
+      #   consider_footprint: false
+      #   collision_cost: 10000.0
+      #   collision_margin_distance: 0.1
+      #   near_goal_distance: 0.5
+      #   inflation_radius: 0.55 # (only in Humble)
+      #   cost_scaling_factor: 10.0 # (only in Humble)
+      # 2026-09-15: time-indexed collision cost vs PREDICTED moving obstacles (T-MPC
+      # Eq. 2d inside MPPI). Uses the tgmppi_spacetime_obstacle_topics subscriptions;
+      # inert when none have published (static BARN). Same cost scale as CostCritic.
+      DynamicObstacleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 3.81
+        critical_cost: 300.0
+        collision_cost: 1000000.0
+        penetration_cost: 10000.0
+        soft_distance: 0.15      # was 0.5: band (1.15 m reach) wider than half the 2 m lane gap -> dodging dances
+        disc_offset: 0.21
+        disc_radius: 0.40
+        max_prediction_time: 10.0
+        trajectory_point_step: 3 # was 1, then 2: still 41.6 ms max near obstacles (20 Hz budget 50 ms); 0.15 s x ~0.7 m/s rel = 0.1 m << 0.65 contact
+        cull_distance: 4.3       # (0.35 + 0.34 m/s) * 2.8 s horizon + 0.65 contact + 0.21 disc offset
+      CostCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 3.81
+        critical_cost: 300.0
+        consider_footprint: true
+        collision_cost: 1000000.0
+        near_goal_distance: 1.0
+        trajectory_point_step: 2
+      PathAlignCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 6.0       # keep NORMAL mode close to the global A* path
+        max_path_occupancy_ratio: 0.05
+        trajectory_point_step: 4
+        threshold_to_consider: 0.5
+        offset_from_furthest: 20
+        use_path_orientations: false
+      PathFollowCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        offset_from_furthest: 5
+        threshold_to_consider: 1.4
+      PathAngleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0       # penalize under-steering at sharp path bends
+        offset_from_furthest: 4
+        threshold_to_consider: 0.5
+        max_angle_to_furthest: 1.0
+        mode: 0
+      # VelocityDeadbandCritic:
+      #   enabled: true
+      #   cost_power: 1
+      #   cost_weight: 35.0
+      #   deadband_velocities: [0.05, 0.05, 0.05]
+      # TwirlingCritic:
+      #   enabled: true
+      #   twirling_cost_power: 1
+      #   twirling_cost_weight: 10.0
+      
+controller_server_rclcpp_node:
+  ros__parameters:
+    use_sim_time: false
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      use_sim_time: false
+      footprint_padding: 0.03
+      update_frequency: 1.0
+      publish_frequency: 1.0
+      global_frame: map
+      robot_base_frame: base_link
+      # robot_radius: 0.3 # radius set and used, so no footprint points
+      footprint: "[[0.42, 0.34],
+                  [0.42, -0.34],
+                  [-0.42, -0.34],
+                  [-0.42, 0.34]]"
+      resolution: 0.025
+      plugins: ["static_layer", "obstacle_layer", "stvl_global", "inflation_layer"]
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: front_scan   # 2026-09-15: front only, matches trials (rear_scan block kept, unused)
+        footprint_clearing_enabled: true
+        max_obstacle_height: 2.0
+        combination_method: 1
+        front_scan:
+          topic: /front_scan
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.0
+          clearing: true
+          marking: true
+          data_type: "LaserScan"
+          inf_is_valid: false
+        rear_scan:
+          topic: /rear_scan
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.0
+          clearing: true
+          marking: true
+          data_type: "LaserScan"
+          inf_is_valid: false
+
+      stvl_global:
+        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
+        enabled: true
+        voxel_size: 0.05
+        origin_z: 0.0
+        track_unknown_space: true
+        publish_voxel_map: true
+        transform_tolerance: 0.2
+        voxel_decay: 3.0           # faster clearing locally
+        decay_model: 1             # 0=None, 1=Linear, 2=Exponential
+        combination_method: 1
+        observation_sources: pointcloud
+        pointcloud:
+          data_type: PointCloud2
+          topic: /susag/depth_camera/points
+          marking: true
+          clearing: true
+          min_z: 0.10
+          max_z: 2.0
+          obstacle_range: 3.0
+          observation_persistence: 0.2
+          filter: "voxel"
+          voxel_min_points: 0
+          clear_after_reading: true
+      
+
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: true
+        enabled: true
+        subscribe_to_updates: true
+        transform_tolerance: 0.1
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        enabled: true
+        inflation_radius: 0.40  # 2026-09-15: back from 0.35 (below the 0.36/0.37 m inscribed radius, invalid); matches navigation_sim_tight.yaml
+        cost_scaling_factor: 6.0
+        inflate_unknown: false
+        inflate_around_unknown: true
+      always_send_full_costmap: true
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      use_sim_time: false
+      update_frequency: 10.0   # 2026-09-15: was 5.0; fresher moving obstacles for the controller (both tight yamls)
+      publish_frequency: 10.0  # 2026-09-15: was 2.0; RViz showed moving obstacles lagging/jumping ~15 cm per frame
+      global_frame: odom
+      robot_base_frame: base_link
+      footprint_padding: 0.02
+      rolling_window: true
+      always_send_full_costmap: true   # RViz "No map received" guard: a rolling costmap otherwise sends only updates once its origin stops moving
+      width: 8    # was 5 -- experiment
+      height: 8   # was 5 -- experiment
+      resolution: 0.025
+      # robot_radius: 0.3 # radius set and used, so no footprint points
+      footprint: "[[0.42, 0.34],
+                  [0.42, -0.34],
+                  [-0.42, -0.34],
+                  [-0.42, 0.34]]"
+      resolution: 0.025
+      plugins: ["obstacle_layer", "stvl_local", "inflation_layer"]
+
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: front_scan   # 2026-09-15: front only, matches trials (rear_scan block kept, unused)
+        footprint_clearing_enabled: true
+        max_obstacle_height: 2.0
+        combination_method: 1
+        front_scan:
+          topic: /front_scan
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.0
+          clearing: true
+          marking: true
+          data_type: "LaserScan"
+          inf_is_valid: false
+        rear_scan:
+          topic: /rear_scan
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.0
+          clearing: true
+          marking: true
+          data_type: "LaserScan"
+          inf_is_valid: false
+
+      stvl_local:
+        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
+        enabled: true
+        voxel_size: 0.05
+        origin_z: 0.0
+        track_unknown_space: true
+        publish_voxel_map: true
+        transform_tolerance: 0.2
+        voxel_decay: 3.0           # faster clearing locally
+        decay_model: 1             # 0=None, 1=Linear, 2=Exponential
+        combination_method: 1
+        observation_sources: pointcloud
+        pointcloud:
+          data_type: PointCloud2
+          topic: /susag/depth_camera/points
+          marking: true
+          clearing: true
+          min_z: 0.10
+          max_z: 2.0
+          obstacle_range: 3.0
+          observation_persistence: 0.2
+          filter: "voxel"
+          voxel_min_points: 0
+          clear_after_reading: true
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        enabled: true
+        inflation_radius: 0.40  # 2026-09-15: back from 0.35 (below the 0.36/0.37 m inscribed radius, invalid); matches navigation_sim_tight.yaml
+        cost_scaling_factor: 6.0
+        inflate_unknown: false
+        inflate_around_unknown: true
+
+map_server:
+  ros__parameters:
+    yaml_filename: "map.yaml"
+
+map_saver:
+  ros__parameters:
+    use_sim_time: false
+    save_map_timeout: 5.0
+    free_thresh_default: 0.25
+    occupied_thresh_default: 0.65
+    map_subscribe_transient_local: true
+
+planner_server:
+  ros__parameters:
+    expected_planner_frequency: 20.0
+    use_sim_time: false
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_navfn_planner/NavfnPlanner"
+      tolerance: 0.5
+      use_astar: false
+      allow_unknown: true
+      
+planner_server_rclcpp_node:
+  ros__parameters:
+    use_sim_time: false
+
+recoveries_server:
+  ros__parameters:
+    costmap_topic: local_costmap/costmap_raw
+    footprint_topic: local_costmap/published_footprint
+    cycle_frequency: 10.0
+    recovery_plugins: ["spin", "backup", "wait"]
+    spin:
+      plugin: "nav2_recoveries/Spin"
+    backup:
+      plugin: "nav2_recoveries/BackUp"
+    wait:
+      plugin: "nav2_recoveries/Wait"
+    global_frame: odom
+    robot_base_frame: base_link
+    transform_timeout: 0.1
+    use_sim_time: false
+    simulate_ahead_time: 2.0
+    max_rotational_vel: 1.0
+    min_rotational_vel: 0.4
+    rotational_acc_lim: 3.2
+
+robot_state_publisher:
+  ros__parameters:
+    use_sim_time: false
+
+waypoint_follower:
+  ros__parameters:
+    loop_rate: 20
+    stop_on_failure: false
+    waypoint_task_executor_plugin: "wait_at_waypoint"   
+    wait_at_waypoint:
+      plugin: "nav2_waypoint_follower::WaitAtWaypoint"
+      enabled: true
+      waypoint_pause_duration: 200
+
+velocity_smoother:
+  ros__parameters:
+    smoothing_frequency: 20.0
+    scale_velocities: False
+    feedback: "OPEN_LOOP"
+    max_velocity: [2.0, 0.0, 2.5]
+    min_velocity: [-0.5, 0.0, -2.5]
+    max_accel: [3.5, 0.0, 3.2]
+    max_decel: [-2.5, 0.0, -3.2]
+    odom_topic: "/odom"
+    odom_duration: 0.1
+    deadband_velocity: [0.0, 0.0, 0.0]
+    velocity_timeout: 1.0

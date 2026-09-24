@@ -82,7 +82,7 @@ void CriticManager::evalTrajectoriesScores(
     };
   const std::size_t n = data.costs.shape(0);
   std::vector<uint8_t> bad;
-  if (corrupt_logs < 20u) {
+  if (corrupt_logs < 20u && data.gpu_batch == nullptr) {
     bad.resize(n);
     for (std::size_t r = 0; r < n; ++r) {bad[r] = implausible(data.costs(r)) ? 1u : 0u;}
   }
@@ -90,6 +90,12 @@ void CriticManager::evalTrajectoriesScores(
     if (data.fail_flag) {
       break;
     }
+#ifdef TGMPPI_WITH_CUDA
+    if (data.gpu_batch && !critics_[q]->supportsGpuBatch()) {
+      data.gpu_batch->materializeHost();
+      data.gpu_batch->flushCosts(data.costs);
+    }
+#endif
     critics_[q]->score(data);
     if (bad.empty() || corrupt_logs >= 20u) {
       continue;
@@ -109,6 +115,21 @@ void CriticManager::evalTrajectoriesScores(
         data.costs(first));
     }
   }
+#ifdef TGMPPI_WITH_CUDA
+  if (data.gpu_batch) {
+    data.gpu_batch->finishCritics(data.costs, data.dynamic_collision_rows);
+    // Device critics accumulate together. Diagnose at the synchronization
+    // boundary without falsely attributing earlier device costs to a CPU plugin.
+    for (std::size_t r = 0; r < n && corrupt_logs < 20u; ++r) {
+      if (implausible(data.costs(r))) {
+        ++corrupt_logs;
+        RCLCPP_WARN(logger_, "[TGMPPI diag] GPU critic batch corrupt at row %zu cost %g",
+          r, data.costs(r));
+        break;
+      }
+    }
+  }
+#endif
 }
 
 }  // namespace tgmppi

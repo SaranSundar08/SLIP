@@ -15,8 +15,7 @@
 
 #include "nav2_tgmppi_controller/critics/goal_critic.hpp"
 #ifdef TGMPPI_WITH_CUDA
-#include <cstring>
-#include "nav2_tgmppi_controller/tools/gpu_rollout.hpp"
+#include "nav2_tgmppi_controller/tools/gpu_batch.hpp"
 #endif
 
 namespace tgmppi::critics
@@ -57,23 +56,22 @@ void GoalCritic::score(CriticData & data)
 #ifdef TGMPPI_WITH_CUDA
   if (data.compute_backend == "cuda" && gpu_critic_.ready()) {
     auto cost_out = xt::xtensor<float, 1>::from_shape({data.costs.shape(0)});
-    if (data.gpu_rollout != nullptr) {
-      // Chained: reads the rollout's already-resident trajectory tensors
-      // directly. No upload of our own at all -- goal_x/goal_y are two
-      // scalar kernel arguments, not tensors -- just a [K] download at
-      // the end. The cheapest possible addition to the shared
-      // data.gpu_rollout pipeline (see PROJECT_STATUS.md 2026-09-10).
-      const auto * rollout = static_cast<const GpuRollout *>(data.gpu_rollout);
+    if (data.gpu_batch != nullptr) {
+      // Read resident trajectories and accumulate into the shared device costs.
+      const auto * rollout = data.gpu_batch;
       auto cost_gpu = gpu_critic_.computeDevice(
         rollout->trajX(), rollout->trajY(), goal_x, goal_y, weight_, power_);
-      auto cost_cpu = cost_gpu.to(torch::kCPU).contiguous();
-      std::memcpy(
-        cost_out.data(), cost_cpu.data_ptr<float>(), cost_out.size() * sizeof(float));
+      data.gpu_batch->addCosts(cost_gpu);
+      return;
     } else {
       gpu_critic_.score(data.trajectories, goal_x, goal_y, weight_, power_, cost_out);
     }
     data.costs += cost_out;
     return;
+  }
+  if (data.gpu_batch) {
+    data.gpu_batch->materializeHost();
+    data.gpu_batch->flushCosts(data.costs);
   }
 #endif
 

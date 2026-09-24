@@ -17,6 +17,8 @@
 
 #include <string>
 #include <memory>
+#include <mutex>
+#include <vector>
 
 #include <xtensor/xtensor.hpp>
 #include <xtensor/xview.hpp>
@@ -30,6 +32,8 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/path.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "nav2_tgmppi_controller/tools/obstacle_observation.hpp"
 
 #include "nav2_mppi_controller/models/optimizer_settings.hpp"
 #include "nav2_mppi_controller/motion_models.hpp"
@@ -259,6 +263,11 @@ protected:
    */
   bool fallback(bool fail);
 
+  void obstacleCallback(std::size_t index, const nav_msgs::msg::Odometry & msg);
+  void snapshotTrackedObstacles();
+  bool finalSequenceIsDynamicallySafe();
+  void stopForDynamicSafety(const char * reason);
+
 protected:
   rclcpp_lifecycle::LifecycleNode::WeakPtr parent_;
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
@@ -281,10 +290,23 @@ protected:
   models::Trajectories generated_trajectories_;
   models::Path path_;
   xt::xtensor<float, 1> costs_;
+  std::vector<std::string> obstacle_topics_;
+  float obstacle_radius_{0.25f};
+  float obstacle_timeout_{0.5f};
+  bool require_obstacle_tracking_{false};
+  bool obstacle_tracking_fault_{false};
+  std::vector<rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr> obstacle_subs_;
+  std::mutex obstacles_mutex_;
+  std::vector<tgmppi::SpaceTimeObstacle> obstacles_;
+  std::vector<rclcpp::Time> obstacle_stamps_;
+  std::vector<bool> obstacle_received_;
+  std::vector<tgmppi::SpaceTimeObstacle> tracked_obstacles_snapshot_;
+  models::State final_safety_state_;
+  models::Trajectories final_safety_trajectory_;
 
   CriticData critics_data_ =
   {state_, generated_trajectories_, path_, costs_, settings_.model_dt, false, nullptr, nullptr,
-    std::nullopt, std::nullopt};  /// Caution, keep references
+    std::nullopt, std::nullopt, nullptr, std::nullopt};  /// Caution, keep references
 
   rclcpp::Logger logger_{rclcpp::get_logger("MPPIController")};
 };

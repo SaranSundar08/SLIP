@@ -52,6 +52,18 @@ void Optimizer::initialize(
 
   getParams();
 
+  if (require_obstacle_tracking_) {
+    obstacles_.assign(obstacle_topics_.size(), tgmppi::SpaceTimeObstacle{});
+    obstacle_stamps_.assign(obstacle_topics_.size(), rclcpp::Time(0, 0, RCL_ROS_TIME));
+    obstacle_received_.assign(obstacle_topics_.size(), false);
+    for (std::size_t i = 0; i < obstacle_topics_.size(); ++i) {
+      obstacle_subs_.push_back(
+        node->create_subscription<nav_msgs::msg::Odometry>(
+          obstacle_topics_[i], rclcpp::SensorDataQoS(),
+          [this, i](const nav_msgs::msg::Odometry & msg) {obstacleCallback(i, msg);}));
+    }
+  }
+
   critic_manager_.on_configure(parent_, name_, costmap_ros_, parameters_handler_);
   noise_generator_.initialize(settings_, isHolonomic(), name_, parameters_handler_);
 
@@ -60,6 +72,7 @@ void Optimizer::initialize(
 
 void Optimizer::shutdown()
 {
+  obstacle_subs_.clear();
   noise_generator_.shutdown();
 }
 
@@ -84,6 +97,15 @@ void Optimizer::getParams()
   getParam(s.sampling_std.vy, "vy_std", 0.2);
   getParam(s.sampling_std.wz, "wz_std", 0.4);
   getParam(s.retry_attempt_limit, "retry_attempt_limit", 1);
+  getParam(
+    obstacle_topics_, "obstacle_topics", std::vector<std::string>{}, ParameterType::Static);
+  getParam(obstacle_radius_, "obstacle_radius", 0.25f, ParameterType::Static);
+  getParam(obstacle_timeout_, "obstacle_timeout", 0.5f, ParameterType::Static);
+  getParam(require_obstacle_tracking_, "require_obstacle_tracking", false, ParameterType::Static);
+  if (tgmppi::badObservationNumber(obstacle_timeout_) || obstacle_timeout_ < 0.05f) {
+    RCLCPP_WARN(logger_, "[MPPI] invalid obstacle timeout; using 0.5 s");
+    obstacle_timeout_ = 0.5f;
+  }
 
   // --- SLIP MPPI variant selection + per-variant knobs ---
   std::string variant_name;
@@ -162,6 +184,8 @@ void Optimizer::reset()
 
   costs_ = xt::zeros<float>({settings_.batch_size});
   generated_trajectories_.reset(settings_.batch_size, settings_.time_steps);
+  final_safety_state_.reset(1u, settings_.time_steps);
+  final_safety_trajectory_.reset(1u, settings_.time_steps);
 
   noise_generator_.reset(settings_, isHolonomic());
   RCLCPP_INFO(logger_, "Optimizer reset");
@@ -174,11 +198,33 @@ geometry_msgs::msg::TwistStamped Optimizer::evalControl(
 {
   prepare(robot_pose, robot_speed, plan, goal_checker);
 
+  if (obstacle_tracking_fault_) {
+    stopForDynamicSafety("moving-obstacle tracking missing or stale");
+    return getControlFromSequenceAsTwist(plan.header.stamp);
+  }
+
   do {
     optimize();
   } while (fallback(critics_data_.fail_flag));
 
   utils::savitskyGolayFilter(control_sequence_, control_history_, settings_);
+  bool sequence_valid = true;
+  for (unsigned int t = 0; t < settings_.time_steps; ++t) {
+    sequence_valid = sequence_valid &&
+      !tgmppi::badObservationNumber(control_sequence_.vx(t)) &&
+      !tgmppi::badObservationNumber(control_sequence_.wz(t)) &&
+      (!isHolonomic() || !tgmppi::badObservationNumber(control_sequence_.vy(t)));
+  }
+  for (const auto & h : control_history_) {
+    sequence_valid = sequence_valid && !tgmppi::badObservationNumber(h.vx) &&
+      !tgmppi::badObservationNumber(h.vy) && !tgmppi::badObservationNumber(h.wz);
+  }
+  if (!sequence_valid) {
+    stopForDynamicSafety("non-finite control sequence");
+  }
+  if (!finalSequenceIsDynamicallySafe()) {
+    stopForDynamicSafety("smoothed command intersects a predicted obstacle");
+  }
   auto control = getControlFromSequenceAsTwist(plan.header.stamp);
 
   if (settings_.shift_control_sequence) {
@@ -231,6 +277,10 @@ void Optimizer::prepare(
   critics_data_.motion_model = motion_model_;
   critics_data_.furthest_reached_path_point.reset();
   critics_data_.path_pts_valid.reset();
+  snapshotTrackedObstacles();
+  critics_data_.tracked_obstacles =
+    tracked_obstacles_snapshot_.empty() ? nullptr : &tracked_obstacles_snapshot_;
+  critics_data_.dynamic_obstacle_params.reset();
 }
 
 void Optimizer::shiftControlSequence()

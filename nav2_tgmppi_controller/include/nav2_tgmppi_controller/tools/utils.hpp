@@ -51,6 +51,10 @@
 #include "builtin_interfaces/msg/time.hpp"
 #include "nav2_tgmppi_controller/critic_data.hpp"
 
+#ifdef TGMPPI_WITH_CUDA
+#include "nav2_tgmppi_controller/tools/gpu_batch.hpp"
+#endif
+
 namespace tgmppi::utils
 {
 using xt::evaluation_strategy::immediate;
@@ -321,6 +325,9 @@ auto shortest_angular_distance(
  */
 inline size_t findPathFurthestReachedPoint(const CriticData & data)
 {
+#ifdef TGMPPI_WITH_CUDA
+  if (data.gpu_batch) {return data.gpu_batch->furthestPathPoint(data.path);}
+#endif
   const auto traj_x = xt::view(data.trajectories.x, xt::all(), -1, xt::newaxis());
   const auto traj_y = xt::view(data.trajectories.y, xt::all(), -1, xt::newaxis());
 
@@ -356,6 +363,9 @@ inline size_t findPathFurthestReachedPoint(const CriticData & data)
  */
 inline size_t findPathTrajectoryInitialPoint(const CriticData & data)
 {
+#ifdef TGMPPI_WITH_CUDA
+  if (data.gpu_batch) {return data.gpu_batch->initialPathPoint(data.path);}
+#endif
   // First point should be the same for all trajectories from initial conditions
   const auto dx = data.path.x - data.trajectories.x(0, 0);
   const auto dy = data.path.y - data.trajectories.y(0, 0);

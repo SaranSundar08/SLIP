@@ -21,11 +21,13 @@
 # obstacles can shove the robot unphysically, so later contacts are not trusted.
 #
 # Conditions (see navigation.launch.py for the switches):
-#   A   stock Nav2 MPPI (navigation_sim_tight.yaml, unmodified baseline)
+#   A   plain MPPI with the same moving-obstacle observations and critic
+#   A0  plain MPPI with the costmap alone (historical baseline)
 #   B   TG-MPPI full, legacy sample split
+#   Be  TG-MPPI experiment config, full method
 #   Bp  TG-MPPI full, equal sample split (amoeba_sandbox allocation)
 #   C   TG-MPPI without space-time
-#   D   plain MPPI + predicted-obstacle critic (TG-MPPI with the bias off)
+#   D   plain MPPI + predicted-obstacle critic (alias of A)
 #
 # Usage:
 #   python3 benchmark_dynamic.py --conditions A B Bp D --worlds dyn1 dyn2 dyn3 --reps 3
@@ -52,6 +54,7 @@ import time
 WS = os.path.expanduser("~/robohouse_ws")
 PARAM_DIR = f"{WS}/src/susag_nav2/param"
 TG_YAML = f"{PARAM_DIR}/navigation_tgmppi_tight.yaml"
+TG_EXPERIMENT_YAML = f"{PARAM_DIR}/navigation_tgmppi_tight_experiment.yaml"
 SIM_YAML = f"{PARAM_DIR}/navigation_sim_tight.yaml"
 WORLD_DIR = f"{WS}/src/BARN_dataset/scaled_1/world_files"
 RESULTS_ROOT = f"{WS}/benchmark_results/dynamic"
@@ -64,6 +67,14 @@ START = (0.0, 1.0, math.pi / 2)
 POINT_A = (2.5, 11.3)
 POINT_B = (-2.8, 0.5)
 ROUTE = [POINT_A, POINT_B, POINT_A, POINT_B]
+# world_d30_1 has 15 obstacle lanes ending at y=26.3. Its fifth goal is in a
+# dedicated clear terminal bay beyond the last lane, so the benchmark actually
+# drives to the end of the enlarged arena instead of stopping amid the lanes.
+D30_END_GOAL = (0.0, 28.5)
+
+
+def route_for_world(world):
+    return ROUTE + [D30_END_GOAL] if world == "d30_1" else ROUTE
 
 ROOM_X, ROOM_Y0, ROOM_Y1 = 4.0, -0.5, 12.5
 BAG_REGEX = ("^/(ground_truth/odom|odom|cmd_vel|cmd_vel_nav|rosout|plan|clock|tf|tf_static|"
@@ -72,18 +83,29 @@ RECOVERY_RE = re.compile(r"fail to compute path|Failed to make progress|Running 
 
 TG_COMMON = ["dynamic_obstacles:=true", "backend:=cpu"]
 CONDITIONS = {
-    "A":  ("stock Nav2 MPPI", SIM_YAML, []),
+    "A":  ("plain MPPI + tracked obstacles", SIM_YAML, ["dynamic_obstacles:=true"]),
+    "A0": ("plain MPPI, costmap only", SIM_YAML, []),
     "B":  ("TG-MPPI full, legacy split", TG_YAML,
+           TG_COMMON + ["ablation:=full", "group_allocation:=legacy"]),
+    "Be": ("TG-MPPI experiment config, full method", TG_EXPERIMENT_YAML,
            TG_COMMON + ["ablation:=full", "group_allocation:=legacy"]),
     "E":  ("TG-MPPI + space-time blob", TG_YAML,
            TG_COMMON + ["ablation:=full", "group_allocation:=legacy", "spacetime_blob:=true"]),
     "F":  ("TG-MPPI + space-time blob pods", TG_YAML,
            TG_COMMON + ["ablation:=full", "group_allocation:=legacy", "spacetime_blob:=pods"]),
+    # GPU counterparts (2026-09-21): identical scene and settings, backend:=cuda. The controller
+    # silently FALLS BACK to cpu if no CUDA device is found, so check the trial's nav2.log says
+    # "compute_backend=cuda" (the report's cycle-ms column comes from that line).
+    "Bg": ("TG-MPPI full, legacy split, GPU", TG_YAML,
+           ["dynamic_obstacles:=true", "backend:=cuda", "ablation:=full",
+            "group_allocation:=legacy"]),
+    "Dg": ("TG-MPPI without topology, GPU", TG_YAML,
+           ["dynamic_obstacles:=true", "backend:=cuda", "ablation:=no_topology"]),
     "Bp": ("TG-MPPI full, equal split", TG_YAML,
            TG_COMMON + ["ablation:=full", "group_allocation:=equal"]),
     "C":  ("TG-MPPI without space-time", TG_YAML,
            TG_COMMON + ["ablation:=no_spacetime", "group_allocation:=legacy"]),
-    "D":  ("plain MPPI + prediction critic", TG_YAML, TG_COMMON + ["ablation:=no_topology"]),
+    "D":  ("plain MPPI + tracked obstacles", SIM_YAML, ["dynamic_obstacles:=true"]),
 }
 STRAY_PATTERNS = ("gzserver", "gzclient", "component_container_isolated", "robot_state_publisher",
                   "spawn_entity.py", "ground_truth_localizer.py", "tracked_obstacle_scan_filter.py",
@@ -293,7 +315,8 @@ def run_trial(cond, world, rep, a):
     node = DynBench()
     gz = nav = bag = None
     record = dict(condition=cond, condition_label=label, world=world, rep=rep,
-                  max_speed=a.max_speed, tracking_quality=a.tracking_quality,
+                  max_speed=a.max_speed, obstacle_speed_max=a.obstacle_speed_max,
+                  tracking_quality=a.tracking_quality,
                   start_sim_time=a.start_sim_time, legs=[], started=datetime.datetime.now().isoformat(),
                   git_slip=git_rev(f"{WS}/src"), git_sandbox=git_rev(f"{WS}/amoeba_sandbox"))
     try:
@@ -304,6 +327,7 @@ def run_trial(cond, world, rep, a):
         if ok:
             nav = Launch(["ros2", "launch", "susag_nav2", "navigation.launch.py", "sim:=true", "rviz:=false",
                           f"world_idx:={world}", f"max_speed:={a.max_speed}",
+                          f"obstacle_speed_max:={a.obstacle_speed_max}",
                           f"tracking_quality:={a.tracking_quality}", f"nav2_params:={params}"] + extra,
                          os.path.join(tdir, "nav2.log"), env)
             ok = (node.wait_node_active("controller_server") and node.wait_node_active("bt_navigator")
@@ -318,7 +342,7 @@ def run_trial(cond, world, rep, a):
             record["late_start"] = node.sim_now() > a.start_sim_time
             node.wait_for(lambda: node.sim_now() >= a.start_sim_time, 300.0, "start sim time")
             prev, fails = START[:2], 0
-            for gxy in ROUTE[:a.legs]:
+            for gxy in route_for_world(world)[:a.legs]:
                 leg = node.run_leg(gxy, yaw_between(prev, gxy), a.leg_timeout)
                 record["legs"].append(leg)
                 print(f"  leg -> ({gxy[0]:+.1f},{gxy[1]:.1f}): {leg['status']} in "
@@ -578,7 +602,9 @@ def run_matrix(a):
             print(f"[{n}/{len(trials)}] {w} {c} rep{r}: done already, skipping", flush=True)
             continue
         cmd = [sys.executable, os.path.abspath(__file__), "--_trial", c, w, str(r), "--run", a.run_id,
-               "--max-speed", str(a.max_speed), "--tracking-quality", a.tracking_quality,
+               "--max-speed", str(a.max_speed),
+               "--obstacle-speed-max", str(a.obstacle_speed_max),
+               "--tracking-quality", a.tracking_quality,
                "--start-sim-time", str(a.start_sim_time), "--legs", str(a.legs),
                "--leg-timeout", str(a.leg_timeout), "--domain", str(a.domain),
                "--max-consecutive-failures", str(a.max_consecutive_failures)]
@@ -651,11 +677,14 @@ def report(run_id=None):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--conditions", nargs="+", default=["A", "B", "Bp", "D"], choices=list(CONDITIONS))
+    p.add_argument("--conditions", nargs="+", default=["A", "B", "Bp"], choices=list(CONDITIONS))
     p.add_argument("--worlds", nargs="+", default=["dyn1", "dyn2", "dyn3", "dyn4", "dyn5"])
     p.add_argument("--reps", type=int, default=3)
-    p.add_argument("--legs", type=int, default=4, help="goals per trial along A,B,A,B")
+    p.add_argument("--legs", type=int, default=5,
+                   help="goals per trial; d30_1 adds a final goal in its clear end bay")
     p.add_argument("--max-speed", type=float, default=1.5)
+    p.add_argument("--obstacle-speed-max", type=float, default=1.5,
+                   help="maximum obstacle speed used to size the prediction checks (m/s)")
     p.add_argument("--tracking-quality", default="perfect", choices=["perfect", "good", "poor"])
     p.add_argument("--start-sim-time", type=float, default=30.0,
                    help="first goal is sent exactly at this sim time in every trial")

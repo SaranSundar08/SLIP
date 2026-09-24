@@ -14,6 +14,7 @@ set(XTENSOR_USE_XSIMD 1)
 find_package(ament_cmake REQUIRED)
 find_package(xtensor REQUIRED)
 find_package(xsimd REQUIRED)
+find_package(nav2_tgmppi_controller REQUIRED)
 
 include_directories(
   include
@@ -33,6 +34,7 @@ set(dependencies_pkgs
   tf2_geometry_msgs
   tf2_eigen
   tf2_ros
+  nav2_tgmppi_controller
 )
 
 foreach(pkg IN LISTS dependencies_pkgs)
@@ -70,6 +72,7 @@ add_compile_options(-O3 -finline-limit=10000000 -ffp-contract=fast -ffast-math -
 add_library(mppi_controller SHARED
   src/controller.cpp
   src/optimizer.cpp
+  src/obstacle_tracking.cpp
   src/critic_manager.cpp
   src/trajectory_visualizer.cpp
   src/path_handler.cpp
@@ -80,6 +83,7 @@ add_library(mppi_controller SHARED
 add_library(mppi_critics SHARED
   src/critics/obstacles_critic.cpp
   src/critics/cost_critic.cpp
+  src/critics/dynamic_obstacle_critic.cpp
   src/critics/goal_critic.cpp
   src/critics/goal_angle_critic.cpp
   src/critics/path_align_critic.cpp
